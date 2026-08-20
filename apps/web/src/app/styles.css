@@ -1,0 +1,48 @@
+:root {
+  color-scheme: dark;
+  font-family: system-ui, sans-serif;
+  background: #100f14;
+  color: #f7f3ed;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+main {
+  display: grid;
+  min-height: 100vh;
+  align-content: center;
+  gap: 1rem;
+  max-width: 48rem;
+  padding: 3rem clamp(1.5rem, 8vw, 6rem);
+}
+
+h1,
+p {
+  margin: 0;
+}
+
+h1 {
+  font-size: clamp(2.5rem, 9vw, 5rem);
+  line-height: 0.95;
+}
+
+p {
+  max-width: 38rem;
+  color: #c9c2ba;
+  font-size: 1.125rem;
+  line-height: 1.6;
+}
+
+.eyebrow {
+  color: #efb366;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
