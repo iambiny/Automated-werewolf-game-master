@@ -51,12 +51,16 @@ export type GameCommandResult =
 export interface GameControllerOptions {
   clock?: () => number;
   executeCommand: GameCommandExecutor;
+  privateTurnProjector?: (state: MatchState) => PrivateTurnView | null;
   repository: MatchRepository;
 }
 
 export class GameController {
   private readonly clock: () => number;
   private readonly executeCommand: GameCommandExecutor;
+  private readonly privateTurnProjector: (
+    state: MatchState,
+  ) => PrivateTurnView | null;
   private readonly recovery: RecoveryCoordinator;
   private readonly repository: MatchRepository;
   private configuration: JsonObject | undefined;
@@ -65,6 +69,8 @@ export class GameController {
   constructor(options: GameControllerOptions) {
     this.clock = options.clock ?? Date.now;
     this.executeCommand = options.executeCommand;
+    this.privateTurnProjector =
+      options.privateTurnProjector ?? toPrivateTurnView;
     this.repository = options.repository;
     this.recovery = new RecoveryCoordinator(options.repository);
   }
@@ -121,7 +127,7 @@ export class GameController {
   }
 
   getPrivateTurnView(): PrivateTurnView | null {
-    return this.state ? toPrivateTurnView(this.state) : null;
+    return this.state ? this.privateTurnProjector(this.state) : null;
   }
 
   getRoleRegistrationView(): RoleRegistrationView | null {

@@ -76,6 +76,12 @@ export { isLegalPhaseTransition, transitionPhase } from './engine/phase-engine';
 export type { TransitionPhaseInput } from './engine/phase-engine';
 export { buildNightQueue } from './engine/night-queue';
 export {
+  advanceNightTurn,
+  startNightRoleTurns,
+  submitNightPass,
+} from './engine/night-turn';
+export type { SubmitNightPassInput } from './engine/night-turn';
+export {
   completeRoleRegistration,
   registerRole,
   resetRoleRegistration,

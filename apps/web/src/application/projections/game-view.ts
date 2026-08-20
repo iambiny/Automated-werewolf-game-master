@@ -21,6 +21,7 @@ export interface PublicPlayerView {
 export interface PublicGameView {
   cycle: number;
   matchId: string;
+  nightResolved: boolean;
   phase: GamePhase;
   players: PublicPlayerView[];
   publicOffice: {
@@ -34,17 +35,31 @@ export interface PublicGameView {
 export interface PrivateTurnView {
   instruction: string;
   mode: 'ACTIVE' | 'DECOY';
+  privateContext?: {
+    canHealWerewolfVictim?: boolean;
+    healPotionRemaining?: number;
+    poisonPotionRemaining?: number;
+    werewolfVictim?: PlayerSummary;
+  };
   privateResult?: {
     result: InvestigationValue;
     targetPlayerId: PlayerId;
   };
   roleId: RoleId;
+  validTargets?: PlayerSummary[];
+}
+
+export interface PlayerSummary {
+  displayName: string;
+  playerId: PlayerId;
+  seatIndex: number;
 }
 
 export function toPublicGameView(state: MatchState): PublicGameView {
   return {
     cycle: state.cycle,
     matchId: state.id,
+    nightResolved: state.nightContext?.resolution !== undefined,
     phase: structuredClone(state.phase),
     players: Object.values(state.players)
       .sort((left, right) => left.seatIndex - right.seatIndex)

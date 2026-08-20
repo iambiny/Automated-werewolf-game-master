@@ -11,7 +11,7 @@ import {
 import { createSetupCommandExecutor } from './setup-command-executor';
 
 describe('setup command executor', () => {
-  it('completes a matching eight-player registration and starts Night 1', () => {
+  it('completes an eight-player registration and resolves Night 1', () => {
     const execute = createSetupCommandExecutor(() =>
       toMvpRuleConfig(DEFAULT_SETUP_RULES),
     );
@@ -53,6 +53,44 @@ describe('setup command executor', () => {
     expect(state.status).toBe('ACTIVE');
     expect(state.phase).toMatchObject({ nightNumber: 1, type: 'NIGHT' });
     expect(state.nightContext?.queue.length).toBeGreaterThan(0);
+
+    state = successfulState(
+      execute(state, { payload: {}, type: 'START_NIGHT_ROLE_TURNS' }),
+    );
+    while (
+      state.phase.type === 'NIGHT' &&
+      state.phase.subphase === 'ROLE_TURN'
+    ) {
+      const context = state.nightContext;
+      const turn = context?.queue[context.currentTurnIndex];
+      if (!turn) throw new Error('Missing current night turn.');
+      if (turn.mode === 'ACTIVE') {
+        state = successfulState(
+          execute(state, {
+            payload: {
+              actionId: `pass-${turn.roleId}`,
+              reason: 'MANUAL',
+            },
+            type: 'PASS_NIGHT_TURN',
+          }),
+        );
+      }
+      state = successfulState(
+        execute(state, { payload: {}, type: 'ADVANCE_NIGHT_TURN' }),
+      );
+    }
+    state = successfulState(
+      execute(state, { payload: {}, type: 'RESOLVE_NIGHT' }),
+    );
+    state = successfulState(
+      execute(state, { payload: {}, type: 'REACH_DAWN' }),
+    );
+
+    expect(state.phase).toEqual({
+      dayNumber: 1,
+      subphase: 'ANNOUNCEMENT',
+      type: 'MORNING',
+    });
   });
 });
 

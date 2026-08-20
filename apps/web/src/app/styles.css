@@ -769,6 +769,337 @@ p {
   max-width: 28rem;
   margin-top: 1.3rem;
 }
+.night-action {
+  width: min(100%, 25rem);
+  margin-top: 2rem;
+}
+.night-cue,
+.night-result,
+.night-resolving,
+.dawn-screen {
+  display: flex;
+  min-height: calc(100svh - 3.75rem);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.night-cue h2,
+.night-result h2,
+.night-resolving h2,
+.dawn-screen h2 {
+  max-width: 38rem;
+  margin-top: 0.8rem;
+}
+.night-cue > p:last-of-type,
+.night-result > p:last-of-type,
+.night-resolving > p:last-of-type,
+.dawn-screen > p:last-of-type {
+  max-width: 27rem;
+  margin-top: 1.1rem;
+}
+.sound-rings {
+  position: relative;
+  display: grid;
+  width: 8rem;
+  height: 8rem;
+  margin-bottom: 2.3rem;
+  place-items: center;
+}
+.sound-rings i {
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(215, 172, 105, 0.22);
+  border-radius: 50%;
+  animation: sound-wave 2.4s ease-out infinite;
+}
+.sound-rings i:nth-child(2) {
+  animation-delay: 0.8s;
+}
+.sound-rings span {
+  display: grid;
+  width: 4.5rem;
+  height: 4.5rem;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(215, 172, 105, 0.09);
+  color: var(--gold);
+  font-size: 2rem;
+}
+@keyframes sound-wave {
+  0% {
+    opacity: 0.8;
+    transform: scale(0.48);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.25);
+  }
+}
+.night-private-turn {
+  min-height: calc(100svh - 3.75rem);
+  padding-top: 4.8rem;
+  padding-bottom: 5rem;
+  text-align: center;
+}
+.night-private-turn h2 {
+  max-width: 36rem;
+  margin: 0.7rem auto 0;
+  font-size: clamp(2.5rem, 11vw, 4.2rem);
+}
+.night-turn-header {
+  position: absolute;
+  top: 1.25rem;
+  right: 1.2rem;
+  left: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.night-turn-header strong {
+  display: grid;
+  width: 3.15rem;
+  height: 2rem;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 2rem;
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--ink);
+}
+.night-turn-header .timer-warning {
+  border-color: rgba(240, 112, 85, 0.35);
+  color: var(--ember-bright);
+}
+.target-grid {
+  display: grid;
+  width: 100%;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+  margin-top: 1.6rem;
+}
+.target-grid.compact {
+  max-height: 13rem;
+  margin-top: 0.8rem;
+  overflow-y: auto;
+}
+.target-button {
+  display: flex;
+  min-height: 3.8rem;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 0.9rem;
+  background: rgba(255, 255, 255, 0.035);
+  cursor: pointer;
+  text-align: left;
+}
+.target-button span {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(215, 172, 105, 0.08);
+  color: var(--gold);
+  font-size: 0.72rem;
+}
+.target-button strong {
+  overflow: hidden;
+  font-size: 0.83rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.target-button.selected {
+  border-color: rgba(240, 112, 85, 0.7);
+  background: rgba(212, 85, 63, 0.13);
+  box-shadow: 0 0 0 1px rgba(240, 112, 85, 0.12);
+}
+.night-submit-row {
+  display: grid;
+  width: 100%;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin-top: 1.2rem;
+}
+.night-submit-row .button {
+  min-width: 0;
+}
+.fixed-target-card {
+  display: flex;
+  width: min(100%, 27rem);
+  margin: 2rem auto 0;
+  padding: 1.25rem;
+  flex-direction: column;
+  gap: 0.35rem;
+  border: 1px solid rgba(212, 85, 63, 0.25);
+  border-radius: 1rem;
+  background: rgba(212, 85, 63, 0.08);
+}
+.fixed-target-card span,
+.fixed-target-card small {
+  color: var(--muted);
+}
+.fixed-target-card span {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.fixed-target-card strong {
+  font-family: Georgia, serif;
+  font-size: 2rem;
+}
+.fixed-target-card small {
+  margin-top: 0.3rem;
+  font-size: 0.72rem;
+}
+.witch-controls {
+  display: grid;
+  gap: 0.7rem;
+  margin-top: 1.5rem;
+}
+.potion-card {
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.035);
+  text-align: left;
+}
+.potion-card > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.potion-card > div:first-child span {
+  font-weight: 700;
+}
+.potion-card > div:first-child strong {
+  color: var(--gold);
+  font-size: 0.75rem;
+}
+.potion-card p {
+  margin: 0.65rem 0;
+  font-size: 0.8rem;
+}
+.potion-card .button {
+  width: 100%;
+  min-height: 3rem;
+}
+.potion-heal {
+  border-color: rgba(121, 180, 151, 0.2);
+}
+.potion-poison {
+  border-color: rgba(147, 103, 179, 0.23);
+}
+.finish-witch {
+  width: 100%;
+  margin-top: 0.4rem;
+}
+.decoy-orb {
+  display: grid;
+  width: 6rem;
+  height: 6rem;
+  margin: 2.5rem auto 1.5rem;
+  place-items: center;
+  border: 1px solid rgba(215, 172, 105, 0.2);
+  border-radius: 50%;
+  color: var(--gold);
+  font-size: 2.2rem;
+  box-shadow: 0 0 3rem rgba(215, 172, 105, 0.06);
+}
+.night-private-turn > p:not(.eyebrow) {
+  max-width: 26rem;
+  margin: 1rem auto 0;
+}
+.result-eye {
+  display: grid;
+  width: 6rem;
+  height: 6rem;
+  margin-bottom: 2rem;
+  place-items: center;
+  border: 1px solid rgba(215, 172, 105, 0.3);
+  border-radius: 50%;
+  color: var(--gold);
+  font-size: 2.5rem;
+}
+.result-value {
+  margin-top: 1.2rem;
+  padding: 0.85rem 1.4rem;
+  border: 1px solid rgba(240, 112, 85, 0.28);
+  border-radius: 2rem;
+  background: rgba(212, 85, 63, 0.1);
+  color: #ffb3a4;
+  font-weight: 700;
+}
+.sleep-glyph {
+  display: grid;
+  width: 5.5rem;
+  height: 5.5rem;
+  margin-bottom: 2rem;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--dim);
+  font-size: 2rem;
+}
+.resolve-pulse {
+  width: 4rem;
+  height: 4rem;
+  margin-bottom: 2rem;
+  border: 1px solid rgba(215, 172, 105, 0.4);
+  border-radius: 50%;
+  animation: resolve-pulse 1.8s ease-in-out infinite;
+}
+@keyframes resolve-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.75);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+    box-shadow: 0 0 3rem rgba(215, 172, 105, 0.12);
+  }
+}
+.dawn-screen {
+  margin: -1.25rem clamp(-2.5rem, -5vw, -1.15rem) -2.5rem;
+  padding: 2rem;
+  background: linear-gradient(
+    180deg,
+    #17131d 0%,
+    #4a2930 52%,
+    #a7533e 80%,
+    #e3a05f 100%
+  );
+}
+.dawn-screen p {
+  color: rgba(255, 244, 228, 0.78);
+}
+.sunrise {
+  position: relative;
+  width: 12rem;
+  height: 6rem;
+  margin-bottom: 2.5rem;
+  overflow: hidden;
+}
+.sunrise i {
+  position: absolute;
+  width: 9rem;
+  height: 9rem;
+  right: 1.5rem;
+  bottom: -5rem;
+  border-radius: 50%;
+  background: #ffd18a;
+  box-shadow: 0 0 5rem #e89955;
+}
 .moon {
   width: 7rem;
   height: 7rem;
@@ -799,8 +1130,12 @@ p {
     padding-top: 2rem;
   }
   .role-count-grid,
-  .role-choice-grid {
+  .role-choice-grid,
+  .target-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .witch-controls {
+    grid-template-columns: 1fr 1fr;
   }
   .role-count-card {
     min-height: 9rem;

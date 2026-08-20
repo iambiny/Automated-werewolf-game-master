@@ -17,6 +17,7 @@ export type {
 export { toPrivateTurnView, toPublicGameView } from './projections/game-view';
 export type {
   PrivateTurnView,
+  PlayerSummary,
   PublicGameView,
   PublicPlayerView,
 } from './projections/game-view';
