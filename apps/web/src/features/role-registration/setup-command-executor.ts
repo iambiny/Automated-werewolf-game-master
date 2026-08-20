@@ -1,13 +1,22 @@
 import {
   advanceNightTurn,
+  announcePendingDeaths,
+  castVote,
   completeRoleRegistration,
+  declareWinner,
+  evaluateWinner,
   registerRole,
   resolveNight,
+  resolveVote,
   resetRoleRegistration,
   startNightRoleTurns,
+  startDayExecutionVote,
   startFirstNight,
+  startMayorElection,
+  startNextNight,
   submitDemonWolfCurseDecision,
   submitGuardProtection,
+  submitHunterShot,
   submitNightPass,
   submitSeerInspection,
   submitWerewolfAttack,
@@ -18,6 +27,7 @@ import {
   type MatchState,
 } from '@werewolf/game-engine';
 import {
+  createMvpExecutionInterceptors,
   createMvpRoleRuntimeState,
   mvpRoleCatalog,
   type MvpRoleId,
@@ -161,6 +171,93 @@ function executeSetupCommand(
         },
         phaseId: `morning-${state.cycle}-announcement`,
       });
+    case 'ANNOUNCE_DEATHS':
+      return announcePendingDeaths(state);
+    case 'ENTER_MORNING_TRIGGERS':
+      return transitionPhase(state, {
+        phase: {
+          dayNumber: state.cycle,
+          subphase: 'MORNING_TRIGGERS',
+          type: 'MORNING',
+        },
+        phaseId: `morning-${state.cycle}-triggers`,
+      });
+    case 'SUBMIT_HUNTER_SHOT':
+      return submitHunterShot(state, command.payload as TargetActionPayload, {
+        hunter: rules.hunter,
+        mayor: rules.mayor,
+      });
+    case 'CHECK_WINNER':
+      return evaluateWinner(state, rules.win)
+        ? declareWinner(state, rules.win)
+        : { events: [], ok: true, state };
+    case 'ENTER_GAME_OVER':
+      return transitionPhase(state, {
+        phase: { type: 'GAME_OVER' },
+        phaseId: 'game-over',
+      });
+    case 'ENTER_MAYOR_ELECTION':
+      return transitionPhase(state, {
+        phase: {
+          dayNumber: state.cycle,
+          subphase: 'MAYOR_ELECTION',
+          type: 'MORNING',
+        },
+        phaseId: `morning-${state.cycle}-mayor-election`,
+      });
+    case 'START_MAYOR_ELECTION':
+      return startMayorElection(state, rules.mayor);
+    case 'CAST_VOTE':
+      return castVote(
+        state,
+        command.payload as { targetPlayerId: string; voterId: string },
+      );
+    case 'RESOLVE_VOTE':
+      return resolveVote(state, {
+        executionInterceptors: createMvpExecutionInterceptors(rules),
+        hunter: rules.hunter,
+        mayor: rules.mayor,
+        tiePolicy: rules.tiePolicy,
+      });
+    case 'ENTER_READY_FOR_DISCUSSION':
+      return transitionPhase(state, {
+        phase: {
+          dayNumber: state.cycle,
+          subphase: 'READY_FOR_DISCUSSION',
+          type: 'MORNING',
+        },
+        phaseId: `morning-${state.cycle}-ready`,
+      });
+    case 'START_DISCUSSION':
+      return transitionPhase(state, {
+        phase: { dayNumber: state.cycle, type: 'DISCUSSION' },
+        phaseId: `day-${state.cycle}-discussion`,
+      });
+    case 'ENTER_DAY_VOTING':
+      return transitionPhase(state, {
+        phase: { dayNumber: state.cycle, round: 1, type: 'VOTING' },
+        phaseId: `day-${state.cycle}-vote-1`,
+      });
+    case 'START_DAY_VOTE':
+      return startDayExecutionVote(state);
+    case 'ENTER_DAY_DEATH_RESOLUTION':
+      return transitionPhase(state, {
+        phase: { dayNumber: state.cycle, type: 'DAY_DEATH_RESOLUTION' },
+        phaseId: `day-${state.cycle}-death-resolution`,
+      });
+    case 'ENTER_REVOTE': {
+      const round = state.votingContext?.round ?? 1;
+      return transitionPhase(state, {
+        phase: { dayNumber: state.cycle, round, type: 'VOTING' },
+        phaseId: `day-${state.cycle}-vote-${round}`,
+      });
+    }
+    case 'START_NEXT_NIGHT':
+      return startNextNight(
+        state,
+        `night-${state.cycle + 1}-prepare`,
+        mvpRoleCatalog,
+      );
     default:
       return {
         error: {

@@ -18,8 +18,11 @@ export { toPrivateTurnView, toPublicGameView } from './projections/game-view';
 export type {
   PrivateTurnView,
   PlayerSummary,
+  PublicDeathView,
   PublicGameView,
   PublicPlayerView,
+  PublicRoleReveal,
+  PublicVotingView,
 } from './projections/game-view';
 export { toRoleRegistrationView } from './projections/role-registration-view';
 export type {

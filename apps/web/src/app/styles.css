@@ -513,7 +513,7 @@ p {
 }
 .segmented {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(6rem, 1fr));
   padding: 0.2rem;
   border-radius: 0.75rem;
   background: rgba(0, 0, 0, 0.28);
@@ -1099,6 +1099,269 @@ p {
   border-radius: 50%;
   background: #ffd18a;
   box-shadow: 0 0 5rem #e89955;
+}
+.dawn-button {
+  width: min(100%, 25rem);
+  margin-top: 2rem;
+  background: rgba(255, 247, 229, 0.92);
+  color: #4b2d2b;
+}
+.day-screen,
+.discussion-screen,
+.game-over-screen {
+  display: flex;
+  min-height: calc(100svh - 3.75rem);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.day-screen h2,
+.discussion-screen h2,
+.game-over-screen h2 {
+  max-width: 39rem;
+  margin-top: 0.75rem;
+}
+.day-screen > p:not(.eyebrow),
+.discussion-screen > p:not(.eyebrow),
+.game-over-screen > p:not(.eyebrow) {
+  max-width: 29rem;
+  margin-top: 1rem;
+}
+.day-action {
+  width: min(100%, 27rem);
+  margin-top: 1.8rem;
+}
+.death-card-list {
+  display: grid;
+  width: min(100%, 30rem);
+  gap: 0.65rem;
+  margin-top: 1.7rem;
+}
+.death-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25rem 0.8rem;
+  padding: 1rem;
+  border: 1px solid rgba(240, 112, 85, 0.24);
+  border-radius: 1rem;
+  background: rgba(212, 85, 63, 0.08);
+  text-align: left;
+}
+.death-card > span {
+  grid-row: span 2;
+  align-self: center;
+  color: var(--ember-bright);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.death-card > strong {
+  font-family: Georgia, serif;
+  font-size: 1.35rem;
+}
+.death-card > small {
+  color: var(--muted);
+}
+.no-death-mark {
+  display: grid;
+  width: 7rem;
+  height: 7rem;
+  margin-top: 2rem;
+  place-items: center;
+  border: 1px solid rgba(121, 180, 151, 0.3);
+  border-radius: 50%;
+  color: var(--safe);
+  font-size: 4rem;
+}
+.hunter-mark {
+  display: grid;
+  width: 6rem;
+  height: 6rem;
+  margin-bottom: 1.8rem;
+  place-items: center;
+  border: 1px solid rgba(240, 112, 85, 0.32);
+  border-radius: 50%;
+  color: var(--ember-bright);
+  font-size: 2.5rem;
+}
+.hunter-screen .target-grid,
+.voting-screen .target-grid {
+  margin-top: 1.5rem;
+}
+.voting-screen {
+  justify-content: flex-start;
+  padding-top: 4.5rem;
+  padding-bottom: 4rem;
+}
+.vote-progress {
+  position: absolute;
+  top: 1.2rem;
+  right: 1.2rem;
+  left: 1.2rem;
+  display: grid;
+  gap: 0.45rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-align: left;
+  text-transform: uppercase;
+}
+.vote-progress i {
+  height: 0.22rem;
+  overflow: hidden;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.08);
+}
+.vote-progress b {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--gold);
+  transition: width 220ms ease;
+}
+.current-voter {
+  display: flex;
+  width: min(100%, 27rem);
+  margin-top: 1.35rem;
+  padding: 0.9rem 1rem;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.25rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.035);
+}
+.current-voter span {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.current-voter strong {
+  font-size: 1.05rem;
+}
+.current-voter small {
+  flex-basis: 100%;
+  color: var(--gold);
+  font-size: 0.7rem;
+}
+.all-ballots {
+  display: flex;
+  width: min(100%, 28rem);
+  margin-top: 2rem;
+  padding: 1.5rem;
+  flex-direction: column;
+  align-items: center;
+  border: 1px solid rgba(121, 180, 151, 0.25);
+  border-radius: 1rem;
+  background: rgba(121, 180, 151, 0.06);
+}
+.all-ballots > span {
+  color: var(--safe);
+  font-size: 1.8rem;
+}
+.all-ballots > p {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+}
+.mayor-seal {
+  display: grid;
+  width: 6rem;
+  height: 6rem;
+  margin-bottom: 1.8rem;
+  place-items: center;
+  border: 1px solid rgba(215, 172, 105, 0.35);
+  border-radius: 50%;
+  background: rgba(215, 172, 105, 0.07);
+  color: var(--gold);
+  font-size: 2.5rem;
+  box-shadow: 0 0 3rem rgba(215, 172, 105, 0.08);
+}
+.discussion-clock {
+  margin-top: 2rem;
+  font-family: Georgia, serif;
+  font-size: clamp(5rem, 24vw, 9rem);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.08em;
+  line-height: 0.9;
+}
+.discussion-clock.warning {
+  color: var(--ember-bright);
+}
+.timer-controls {
+  display: grid;
+  width: min(100%, 27rem);
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+  margin-top: 1.6rem;
+}
+.execution-reveal {
+  display: flex;
+  min-width: min(100%, 22rem);
+  margin-top: 1.6rem;
+  padding: 1rem 1.3rem;
+  flex-direction: column;
+  gap: 0.3rem;
+  border: 1px solid rgba(240, 112, 85, 0.25);
+  border-radius: 1rem;
+  background: rgba(212, 85, 63, 0.08);
+}
+.execution-reveal span {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.execution-reveal strong {
+  color: #ffb2a3;
+}
+.winner-symbol {
+  display: grid;
+  width: 7rem;
+  height: 7rem;
+  margin-bottom: 2rem;
+  place-items: center;
+  border: 1px solid rgba(215, 172, 105, 0.35);
+  border-radius: 50%;
+  color: var(--gold);
+  font-size: 3rem;
+  box-shadow: 0 0 5rem rgba(215, 172, 105, 0.1);
+}
+.role-reveal-list {
+  display: grid;
+  width: min(100%, 34rem);
+  gap: 0.45rem;
+  margin-top: 1.7rem;
+}
+.role-reveal-list > div {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.15rem 1rem;
+  padding: 0.75rem 0.9rem;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+.role-reveal-list strong {
+  color: var(--gold);
+  text-align: right;
+}
+.role-reveal-list small {
+  grid-column: 2;
+  color: var(--dim);
+  font-size: 0.64rem;
+  letter-spacing: 0.08em;
+  text-align: right;
+  text-transform: uppercase;
+}
+.game-over-actions {
+  display: grid;
+  width: min(100%, 28rem);
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+  margin-top: 1.7rem;
 }
 .moon {
   width: 7rem;

@@ -13,10 +13,14 @@ import { IndexedDbMatchRepository } from '../../adapters/persistence/indexeddb-m
 import { GameController } from '../../application/game-controller/game-controller';
 import type {
   PrivateTurnView,
+  PlayerSummary,
+  PublicDeathView,
   PublicGameView,
+  PublicVotingView,
 } from '../../application/projections/game-view';
 import type { RoleRegistrationView } from '../../application/projections/role-registration-view';
 import type { RecoveryCheckpoint } from '../../application/recovery/recovery-coordinator';
+import { toMvpPublicGameView } from '../day/mvp-public-game-view';
 import { toMvpPrivateTurnView } from '../night/mvp-private-turn-view';
 import { createSetupCommandExecutor } from '../role-registration/setup-command-executor';
 import {
@@ -52,11 +56,21 @@ type Screen =
   | 'NIGHT_RESULT'
   | 'NIGHT_SLEEP'
   | 'NIGHT_RESOLVING'
-  | 'DAWN';
+  | 'DAWN'
+  | 'MORNING_OUTCOME'
+  | 'HUNTER'
+  | 'HUNTER_OUTCOME'
+  | 'MAYOR_VOTE'
+  | 'MAYOR_RESULT'
+  | 'DISCUSSION'
+  | 'DAY_VOTE'
+  | 'VOTE_OUTCOME'
+  | 'GAME_OVER';
 
 export function GameApp() {
   const controllerRef = useRef<GameController | null>(null);
   const rulesRef = useRef(toMvpRuleConfig(DEFAULT_SETUP_RULES));
+  const setupRulesRef = useRef(DEFAULT_SETUP_RULES);
   const nextPlayerId = useRef(9);
   const [screen, setScreen] = useState<Screen>('HOME');
   const [loading, setLoading] = useState(true);
@@ -76,6 +90,8 @@ export function GameApp() {
   const [privateTurn, setPrivateTurn] = useState<PrivateTurnView | null>(null);
   const [nightError, setNightError] = useState<string | null>(null);
   const [witchActionTaken, setWitchActionTaken] = useState(false);
+  const [announcedDeaths, setAnnouncedDeaths] = useState<PublicDeathView[]>([]);
+  const [dayMessage, setDayMessage] = useState<string | null>(null);
 
   const hidePrivateContent = useCallback(() => {
     setRevealed(false);
@@ -95,6 +111,8 @@ export function GameApp() {
       executeCommand: createSetupCommandExecutor(() => rulesRef.current),
       privateTurnProjector: (state) =>
         toMvpPrivateTurnView(state, rulesRef.current),
+      publicViewProjector: (state) =>
+        toMvpPublicGameView(state, setupRulesRef.current),
       repository,
     });
     controllerRef.current = controller;
@@ -103,10 +121,11 @@ export function GameApp() {
       if (!active) return;
       if (result.status === 'READY') {
         setResumeCheckpoint(result.checkpoint);
-        setResumeView(controller.getPublicView());
         const persistedRules = parseSetupRules(controller.getConfiguration());
+        setupRulesRef.current = persistedRules;
         rulesRef.current = toMvpRuleConfig(persistedRules);
         setRules(persistedRules);
+        setResumeView(controller.getPublicView());
       }
       setLoading(false);
     });
@@ -122,6 +141,7 @@ export function GameApp() {
     setPlayers(DEFAULT_PLAYERS.map((player) => ({ ...player })));
     setRoleCounts({ ...DEFAULT_ROLE_COUNTS });
     setRules({ ...DEFAULT_SETUP_RULES });
+    setupRulesRef.current = DEFAULT_SETUP_RULES;
     setError(null);
     setScreen('PLAYERS');
   }
@@ -148,7 +168,32 @@ export function GameApp() {
         );
       }
     } else if (resumeView.phase.type === 'MORNING') {
-      setScreen('DAWN');
+      if (resumeView.phase.subphase === 'ANNOUNCEMENT') {
+        setScreen('DAWN');
+      } else if (resumeView.phase.subphase === 'MAYOR_ELECTION') {
+        setScreen(resumeView.voting ? 'MAYOR_VOTE' : 'MAYOR_RESULT');
+      } else if (resumeView.phase.subphase === 'READY_FOR_DISCUSSION') {
+        void beginDiscussion();
+      } else if (resumeView.pendingHunter) {
+        setScreen('HUNTER');
+      } else {
+        void continueAfterResolvedTriggers('MORNING');
+      }
+    } else if (resumeView.phase.type === 'DISCUSSION') {
+      setScreen('DISCUSSION');
+    } else if (resumeView.phase.type === 'VOTING') {
+      setScreen('DAY_VOTE');
+    } else if (resumeView.phase.type === 'DAY_DEATH_RESOLUTION') {
+      if (resumeView.voting) {
+        setDayMessage(
+          'The vote is tied. Only the tied players remain eligible.',
+        );
+        setScreen('VOTE_OUTCOME');
+      } else if (resumeView.pendingHunter) {
+        setScreen('HUNTER');
+      } else {
+        void continueAfterResolvedTriggers('DAY');
+      }
     }
   }
 
@@ -172,6 +217,7 @@ export function GameApp() {
     setBusy(true);
     setError(null);
     rulesRef.current = toMvpRuleConfig(rules);
+    setupRulesRef.current = rules;
     const created = await controller.createMatch(
       {
         id: `match-${Date.now()}`,
@@ -432,6 +478,308 @@ export function GameApp() {
     setScreen('DAWN');
   }
 
+  async function revealMorningOutcome() {
+    const controller = controllerRef.current;
+    if (!controller) return;
+    setBusy(true);
+    setError(null);
+    setAnnouncedDeaths(controller.getPublicView()?.unannouncedDeaths ?? []);
+    const announced = await controller.dispatch({
+      payload: {},
+      type: 'ANNOUNCE_DEATHS',
+    });
+    if (!announced.ok) {
+      setBusy(false);
+      return setError(announced.error.message);
+    }
+    const triggers = await controller.dispatch({
+      payload: {},
+      type: 'ENTER_MORNING_TRIGGERS',
+    });
+    setBusy(false);
+    if (!triggers.ok) return setError(triggers.error.message);
+    setResumeView(controller.getPublicView());
+    setScreen('MORNING_OUTCOME');
+  }
+
+  function continueAfterMorningOutcome() {
+    const view = controllerRef.current?.getPublicView();
+    if (view?.pendingHunter) {
+      setScreen('HUNTER');
+      return;
+    }
+    void continueAfterResolvedTriggers('MORNING');
+  }
+
+  async function submitHunterTarget(targetPlayerId: string) {
+    const controller = controllerRef.current;
+    if (!controller) return;
+    setBusy(true);
+    setError(null);
+    const result = await controller.dispatch({
+      payload: {
+        actionId: `hunter-shot-${Date.now()}`,
+        targetPlayerId,
+      },
+      type: 'SUBMIT_HUNTER_SHOT',
+    });
+    if (!result.ok) {
+      setBusy(false);
+      return setError(result.error.message);
+    }
+    const view = controller.getPublicView();
+    setAnnouncedDeaths(view?.unannouncedDeaths ?? []);
+    const announced = await controller.dispatch({
+      payload: {},
+      type: 'ANNOUNCE_DEATHS',
+    });
+    setBusy(false);
+    if (!announced.ok) return setError(announced.error.message);
+    setResumeView(controller.getPublicView());
+    setScreen('HUNTER_OUTCOME');
+  }
+
+  function continueAfterHunterOutcome() {
+    const view = controllerRef.current?.getPublicView();
+    if (view?.pendingHunter) {
+      setScreen('HUNTER');
+      return;
+    }
+    void continueAfterResolvedTriggers(
+      view?.phase.type === 'MORNING' ? 'MORNING' : 'DAY',
+    );
+  }
+
+  async function continueAfterResolvedTriggers(timing: 'DAY' | 'MORNING') {
+    const controller = controllerRef.current;
+    if (!controller) return;
+    setBusy(true);
+    setError(null);
+    const checked = await controller.dispatch({
+      payload: {},
+      type: 'CHECK_WINNER',
+    });
+    if (!checked.ok) {
+      setBusy(false);
+      return setError(checked.error.message);
+    }
+    let view = controller.getPublicView();
+    if (view?.winner) {
+      const completed = await controller.dispatch({
+        payload: {},
+        type: 'ENTER_GAME_OVER',
+      });
+      setBusy(false);
+      if (!completed.ok) return setError(completed.error.message);
+      setResumeView(controller.getPublicView());
+      setScreen('GAME_OVER');
+      return;
+    }
+
+    if (timing === 'MORNING') {
+      setBusy(false);
+      if (
+        view?.cycle === rulesRef.current.mayor.electionDay &&
+        !view.publicOffice.mayorElectionCompleted
+      ) {
+        await beginMayorElection();
+      } else {
+        await beginDiscussion();
+      }
+      return;
+    }
+
+    const nextNight = await controller.dispatch({
+      payload: {},
+      type: 'START_NEXT_NIGHT',
+    });
+    setBusy(false);
+    if (!nextNight.ok) return setError(nextNight.error.message);
+    view = controller.getPublicView();
+    setResumeView(view);
+    setScreen('NIGHT_READY');
+  }
+
+  async function beginMayorElection() {
+    const controller = controllerRef.current;
+    if (!controller) return;
+    setBusy(true);
+    const entered = await controller.dispatch({
+      payload: {},
+      type: 'ENTER_MAYOR_ELECTION',
+    });
+    if (!entered.ok) {
+      setBusy(false);
+      return setError(entered.error.message);
+    }
+    const started = await controller.dispatch({
+      payload: {},
+      type: 'START_MAYOR_ELECTION',
+    });
+    setBusy(false);
+    if (!started.ok) return setError(started.error.message);
+    setResumeView(controller.getPublicView());
+    setScreen('MAYOR_VOTE');
+  }
+
+  async function castPublicBallot(targetPlayerId: string) {
+    const controller = controllerRef.current;
+    const voting = controller?.getPublicView()?.voting;
+    if (!controller || !voting?.currentVoter) return;
+    setBusy(true);
+    setError(null);
+    const result = await controller.dispatch({
+      payload: {
+        targetPlayerId,
+        voterId: voting.currentVoter.playerId,
+      },
+      type: 'CAST_VOTE',
+    });
+    setBusy(false);
+    if (!result.ok) return setError(result.error.message);
+    setResumeView(controller.getPublicView());
+  }
+
+  async function resolveMayorVote() {
+    const controller = controllerRef.current;
+    if (!controller) return;
+    setBusy(true);
+    const result = await controller.dispatch({
+      payload: {},
+      type: 'RESOLVE_VOTE',
+    });
+    setBusy(false);
+    if (!result.ok) return setError(result.error.message);
+    const view = controller.getPublicView();
+    setResumeView(view);
+    setScreen(view?.voting ? 'MAYOR_VOTE' : 'MAYOR_RESULT');
+  }
+
+  async function beginDiscussion() {
+    const controller = controllerRef.current;
+    const view = controller?.getPublicView();
+    if (!controller || !view) return;
+    setBusy(true);
+    setError(null);
+    if (view.phase.type === 'MORNING') {
+      const ready = await controller.dispatch({
+        payload: {},
+        type: 'ENTER_READY_FOR_DISCUSSION',
+      });
+      if (!ready.ok) {
+        setBusy(false);
+        return setError(ready.error.message);
+      }
+    }
+    const started = await controller.dispatch({
+      payload: {},
+      type: 'START_DISCUSSION',
+    });
+    setBusy(false);
+    if (!started.ok) return setError(started.error.message);
+    setResumeView(controller.getPublicView());
+    setScreen('DISCUSSION');
+  }
+
+  async function beginDayVote() {
+    const controller = controllerRef.current;
+    if (!controller) return;
+    setBusy(true);
+    setError(null);
+    const entered = await controller.dispatch({
+      payload: {},
+      type: 'ENTER_DAY_VOTING',
+    });
+    if (!entered.ok) {
+      setBusy(false);
+      return setError(entered.error.message);
+    }
+    const started = await controller.dispatch({
+      payload: {},
+      type: 'START_DAY_VOTE',
+    });
+    setBusy(false);
+    if (!started.ok) return setError(started.error.message);
+    setResumeView(controller.getPublicView());
+    setScreen('DAY_VOTE');
+  }
+
+  async function resolveDayVote() {
+    const controller = controllerRef.current;
+    if (!controller) return;
+    setBusy(true);
+    setError(null);
+    const entered = await controller.dispatch({
+      payload: {},
+      type: 'ENTER_DAY_DEATH_RESOLUTION',
+    });
+    if (!entered.ok) {
+      setBusy(false);
+      return setError(entered.error.message);
+    }
+    const resolved = await controller.dispatch({
+      payload: {},
+      type: 'RESOLVE_VOTE',
+    });
+    if (!resolved.ok) {
+      setBusy(false);
+      return setError(resolved.error.message);
+    }
+    let view = controller.getPublicView();
+    setAnnouncedDeaths(view?.unannouncedDeaths ?? []);
+    if (view?.unannouncedDeaths?.length) {
+      const announced = await controller.dispatch({
+        payload: {},
+        type: 'ANNOUNCE_DEATHS',
+      });
+      if (!announced.ok) {
+        setBusy(false);
+        return setError(announced.error.message);
+      }
+      setDayMessage(null);
+    } else if (view?.voting) {
+      setDayMessage(
+        'The vote is tied. Only the tied players remain eligible for the revote.',
+      );
+    } else if (view?.foolRevealedPlayerId) {
+      const fool = view.players.find(
+        (player) => player.playerId === view?.foolRevealedPlayerId,
+      );
+      setDayMessage(
+        `${fool?.displayName ?? 'The Fool'} survives the execution and loses their vote.`,
+      );
+    } else {
+      setDayMessage('No player was executed.');
+    }
+    view = controller.getPublicView();
+    setResumeView(view);
+    setBusy(false);
+    setScreen('VOTE_OUTCOME');
+  }
+
+  async function continueAfterVoteOutcome() {
+    const controller = controllerRef.current;
+    const view = controller?.getPublicView();
+    if (!controller || !view) return;
+    if (view.voting) {
+      setBusy(true);
+      const revote = await controller.dispatch({
+        payload: {},
+        type: 'ENTER_REVOTE',
+      });
+      setBusy(false);
+      if (!revote.ok) return setError(revote.error.message);
+      setResumeView(controller.getPublicView());
+      setScreen('DAY_VOTE');
+      return;
+    }
+    if (view.pendingHunter) {
+      setScreen('HUNTER');
+      return;
+    }
+    await continueAfterResolvedTriggers('DAY');
+  }
+
   if (loading) return <LoadingScreen />;
 
   return (
@@ -581,7 +929,106 @@ export function GameApp() {
             onRetry={() => void finishNight()}
           />
         )}
-        {screen === 'DAWN' && <DawnScreen dayNumber={resumeView?.cycle ?? 1} />}
+        {screen === 'DAWN' && (
+          <DawnScreen
+            busy={busy}
+            dayNumber={resumeView?.cycle ?? 1}
+            error={error}
+            onReveal={() => void revealMorningOutcome()}
+          />
+        )}
+        {screen === 'MORNING_OUTCOME' && (
+          <DeathAnnouncementScreen
+            deaths={announcedDeaths}
+            heading={
+              announcedDeaths.length === 0
+                ? 'The village is unchanged.'
+                : 'The night has taken its toll.'
+            }
+            onContinue={continueAfterMorningOutcome}
+          />
+        )}
+        {screen === 'HUNTER' && resumeView?.pendingHunter && (
+          <HunterScreen
+            busy={busy}
+            error={error}
+            hunter={resumeView.pendingHunter}
+            onSubmit={(targetPlayerId) =>
+              void submitHunterTarget(targetPlayerId)
+            }
+            targets={resumeView.players
+              .filter((player) => player.lifeState === 'ALIVE')
+              .map((player) => ({
+                displayName: player.displayName,
+                playerId: player.playerId,
+                seatIndex: player.seatIndex,
+              }))}
+          />
+        )}
+        {screen === 'HUNTER_OUTCOME' && (
+          <DeathAnnouncementScreen
+            deaths={announcedDeaths}
+            heading="The Hunter's shot lands."
+            onContinue={continueAfterHunterOutcome}
+          />
+        )}
+        {screen === 'MAYOR_VOTE' && resumeView?.voting && (
+          <VotingScreen
+            busy={busy}
+            error={error}
+            key={resumeView.voting.currentVoter?.playerId ?? 'mayor-resolve'}
+            mayorPlayerId={undefined}
+            onCast={(targetPlayerId) => void castPublicBallot(targetPlayerId)}
+            onResolve={() => void resolveMayorVote()}
+            title="Elect the first Mayor"
+            voting={resumeView.voting}
+          />
+        )}
+        {screen === 'MAYOR_RESULT' && (
+          <MayorResultScreen
+            mayor={resumeView?.players.find(
+              (player) =>
+                player.playerId === resumeView.publicOffice.mayorPlayerId,
+            )}
+            onContinue={() => void beginDiscussion()}
+          />
+        )}
+        {screen === 'DISCUSSION' && (
+          <DiscussionScreen
+            initialSeconds={rules.discussionTimerSeconds}
+            onEnd={() => void beginDayVote()}
+          />
+        )}
+        {screen === 'DAY_VOTE' && resumeView?.voting && (
+          <VotingScreen
+            busy={busy}
+            error={error}
+            key={resumeView.voting.currentVoter?.playerId ?? 'day-resolve'}
+            mayorPlayerId={resumeView.publicOffice.mayorPlayerId}
+            onCast={(targetPlayerId) => void castPublicBallot(targetPlayerId)}
+            onResolve={() => void resolveDayVote()}
+            title="Village execution vote"
+            voting={resumeView.voting}
+          />
+        )}
+        {screen === 'VOTE_OUTCOME' && (
+          <VoteOutcomeScreen
+            busy={busy}
+            deaths={announcedDeaths}
+            message={dayMessage}
+            onContinue={() => void continueAfterVoteOutcome()}
+          />
+        )}
+        {screen === 'GAME_OVER' && resumeView?.winner && (
+          <GameOverScreen
+            onHome={() => {
+              setResumeView(null);
+              setScreen('HOME');
+            }}
+            onPlayAgain={beginNewGame}
+            view={resumeView}
+          />
+        )}
       </div>
     </main>
   );
@@ -897,6 +1344,19 @@ function RulesSetup({
             <span>Mayor office after death</span>
             <strong>Vacant</strong>
           </div>
+        </SettingGroup>
+        <SettingGroup title="Death reveal">
+          <SegmentedControl
+            value={rules.deathRevealPolicy}
+            options={[
+              ['ROLE', 'Exact role'],
+              ['TEAM', 'Team only'],
+              ['NONE', 'No reveal'],
+            ]}
+            onChange={(deathRevealPolicy) =>
+              onChange({ ...rules, deathRevealPolicy })
+            }
+          />
         </SettingGroup>
         <SettingGroup title="Timers">
           <NumberSetting
@@ -1563,7 +2023,17 @@ function NightResolvingScreen({
   );
 }
 
-function DawnScreen({ dayNumber }: { dayNumber: number }) {
+function DawnScreen({
+  busy,
+  dayNumber,
+  error,
+  onReveal,
+}: {
+  busy: boolean;
+  dayNumber: number;
+  error: string | null;
+  onReveal: () => void;
+}) {
   return (
     <section className="dawn-screen panel-enter">
       <div className="sunrise" aria-hidden="true">
@@ -1571,7 +2041,310 @@ function DawnScreen({ dayNumber }: { dayNumber: number }) {
       </div>
       <p className="eyebrow">Morning {dayNumber}</p>
       <h2>The village wakes.</h2>
-      <p>Night outcomes are sealed. Morning announcements continue in PR-10.</p>
+      <p>Night actions remain secret. Only the final public outcome follows.</p>
+      <InlineError message={error} />
+      <button className="button dawn-button" disabled={busy} onClick={onReveal}>
+        {busy ? 'Preparing announcement…' : 'Reveal the morning'}
+      </button>
+    </section>
+  );
+}
+
+function DeathAnnouncementScreen({
+  deaths,
+  heading,
+  onContinue,
+}: {
+  deaths: PublicDeathView[];
+  heading: string;
+  onContinue: () => void;
+}) {
+  return (
+    <section className="day-screen death-announcement panel-enter">
+      <p className="eyebrow">Public announcement</p>
+      <h2>{heading}</h2>
+      {deaths.length === 0 ? (
+        <div className="no-death-mark" aria-hidden="true">
+          ○
+        </div>
+      ) : (
+        <div className="death-card-list">
+          {deaths.map((death) => (
+            <article className="death-card" key={death.playerId}>
+              <span>Seat {death.seatIndex + 1}</span>
+              <strong>{death.displayName}</strong>
+              <small>{deathRevealText(death)}</small>
+            </article>
+          ))}
+        </div>
+      )}
+      <p>
+        {deaths.length === 0
+          ? 'No one died. The reason remains hidden.'
+          : 'No targets, protections, or hidden action sources are revealed.'}
+      </p>
+      <button className="button button-primary day-action" onClick={onContinue}>
+        Continue the morning
+      </button>
+    </section>
+  );
+}
+
+function HunterScreen({
+  busy,
+  error,
+  hunter,
+  onSubmit,
+  targets,
+}: {
+  busy: boolean;
+  error: string | null;
+  hunter: PlayerSummary;
+  onSubmit: (targetPlayerId: string) => void;
+  targets: PlayerSummary[];
+}) {
+  const [selected, setSelected] = useState<string | null>(null);
+  const target = targets.find((player) => player.playerId === selected);
+  return (
+    <section className="day-screen hunter-screen panel-enter">
+      <div className="hunter-mark" aria-hidden="true">
+        ⌖
+      </div>
+      <p className="eyebrow">Mandatory death trigger</p>
+      <h2>{hunter.displayName}, take your final shot.</h2>
+      <p>The winner will not be checked until every Hunter shot resolves.</p>
+      <TargetGrid
+        onSelect={setSelected}
+        selectedTarget={selected}
+        targets={targets}
+      />
+      <InlineError message={error} />
+      <button
+        className="button button-primary day-action"
+        disabled={!target || busy}
+        onClick={() => target && onSubmit(target.playerId)}
+      >
+        Confirm shot at {target?.displayName ?? 'a player'}
+      </button>
+    </section>
+  );
+}
+
+function VotingScreen({
+  busy,
+  error,
+  mayorPlayerId,
+  onCast,
+  onResolve,
+  title,
+  voting,
+}: {
+  busy: boolean;
+  error: string | null;
+  mayorPlayerId?: string;
+  onCast: (targetPlayerId: string) => void;
+  onResolve: () => void;
+  title: string;
+  voting: PublicVotingView;
+}) {
+  const [selected, setSelected] = useState<string | null>(null);
+  const target = voting.eligibleTargets.find(
+    (player) => player.playerId === selected,
+  );
+  return (
+    <section className="day-screen voting-screen panel-enter">
+      <div className="vote-progress">
+        <span>
+          Round {voting.round} · {voting.ballotsCast}/{voting.totalVoters}{' '}
+          ballots
+        </span>
+        <i>
+          <b
+            style={{
+              width: `${(voting.ballotsCast / Math.max(1, voting.totalVoters)) * 100}%`,
+            }}
+          />
+        </i>
+      </div>
+      <p className="eyebrow">Open vote · Moderator records</p>
+      <h2>{title}</h2>
+      {voting.currentVoter ? (
+        <>
+          <div className="current-voter">
+            <span>Recording ballot for</span>
+            <strong>{voting.currentVoter.displayName}</strong>
+            {mayorPlayerId === voting.currentVoter.playerId && (
+              <small>Mayor ballot counts ×2</small>
+            )}
+          </div>
+          <TargetGrid
+            onSelect={setSelected}
+            selectedTarget={selected}
+            targets={voting.eligibleTargets}
+          />
+          <InlineError message={error} />
+          <button
+            className="button button-primary day-action"
+            disabled={!target || busy}
+            onClick={() => target && onCast(target.playerId)}
+          >
+            Record vote for {target?.displayName ?? 'a player'}
+          </button>
+        </>
+      ) : (
+        <div className="all-ballots">
+          <span aria-hidden="true">✓</span>
+          <strong>All public ballots are recorded</strong>
+          <p>
+            The engine will apply vote eligibility, Mayor weight, and tie rules.
+          </p>
+          <InlineError message={error} />
+          <button
+            className="button button-primary day-action"
+            disabled={busy}
+            onClick={onResolve}
+          >
+            Resolve the vote
+          </button>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function MayorResultScreen({
+  mayor,
+  onContinue,
+}: {
+  mayor?: PublicGameView['players'][number];
+  onContinue: () => void;
+}) {
+  return (
+    <section className="day-screen mayor-result panel-enter">
+      <div className="mayor-seal" aria-hidden="true">
+        ✦
+      </div>
+      <p className="eyebrow">Public office elected</p>
+      <h2>{mayor?.displayName ?? 'The new Mayor'}</h2>
+      <p>The Mayor's execution ballot counts ×2 while they hold office.</p>
+      <button className="button button-primary day-action" onClick={onContinue}>
+        Begin discussion
+      </button>
+    </section>
+  );
+}
+
+function DiscussionScreen({
+  initialSeconds,
+  onEnd,
+}: {
+  initialSeconds: number;
+  onEnd: () => void;
+}) {
+  const timer = useDiscussionTimer(initialSeconds, onEnd);
+  return (
+    <section className="discussion-screen panel-enter">
+      <p className="eyebrow">Day discussion</p>
+      <h2>Find the Werewolves.</h2>
+      <div
+        className={
+          timer.remaining <= 60
+            ? 'discussion-clock warning'
+            : 'discussion-clock'
+        }
+      >
+        {formatDuration(timer.remaining)}
+      </div>
+      <p>
+        {timer.running ? 'The village has the floor.' : 'Discussion is paused.'}
+      </p>
+      <div className="timer-controls">
+        <button className="button button-secondary" onClick={timer.toggle}>
+          {timer.running ? 'Pause' : 'Resume'}
+        </button>
+        <button className="button button-secondary" onClick={timer.addThirty}>
+          +30 seconds
+        </button>
+      </div>
+      <button className="button button-primary day-action" onClick={onEnd}>
+        End discussion and vote
+      </button>
+    </section>
+  );
+}
+
+function VoteOutcomeScreen({
+  busy,
+  deaths,
+  message,
+  onContinue,
+}: {
+  busy: boolean;
+  deaths: PublicDeathView[];
+  message: string | null;
+  onContinue: () => void;
+}) {
+  const death = deaths[0];
+  return (
+    <section className="day-screen vote-outcome panel-enter">
+      <p className="eyebrow">Execution result</p>
+      <h2>
+        {death ? `${death.displayName} is executed.` : 'The vote is settled.'}
+      </h2>
+      {death ? (
+        <div className="execution-reveal">
+          <span>Public reveal</span>
+          <strong>{deathRevealText(death)}</strong>
+        </div>
+      ) : (
+        <p>{message}</p>
+      )}
+      <button
+        className="button button-primary day-action"
+        disabled={busy}
+        onClick={onContinue}
+      >
+        Continue
+      </button>
+    </section>
+  );
+}
+
+function GameOverScreen({
+  onHome,
+  onPlayAgain,
+  view,
+}: {
+  onHome: () => void;
+  onPlayAgain: () => void;
+  view: PublicGameView;
+}) {
+  const villageWon = view.winner?.teamId === 'VILLAGE';
+  return (
+    <section className="game-over-screen panel-enter">
+      <div className="winner-symbol" aria-hidden="true">
+        {villageWon ? '☀' : '▲'}
+      </div>
+      <p className="eyebrow">Game over</p>
+      <h2>{villageWon ? 'The Village wins.' : 'The Werewolves win.'}</h2>
+      <p>{view.winner?.reason}</p>
+      <div className="role-reveal-list">
+        {view.revealedRoles?.map((player) => (
+          <div key={player.playerId}>
+            <span>{player.displayName}</span>
+            <strong>{nightRoleLabel(player.roleId)}</strong>
+            <small>{player.teamId}</small>
+          </div>
+        ))}
+      </div>
+      <div className="game-over-actions">
+        <button className="button button-primary" onClick={onPlayAgain}>
+          Play again
+        </button>
+        <button className="button button-secondary" onClick={onHome}>
+          Return home
+        </button>
+      </div>
     </section>
   );
 }
@@ -1789,6 +2562,70 @@ function nightPrompt(roleId: string): string {
     default:
       return 'Complete your night action.';
   }
+}
+
+function deathRevealText(death: PublicDeathView): string {
+  if (death.revealedRoleId) return nightRoleLabel(death.revealedRoleId);
+  if (death.revealedTeamId) {
+    return death.revealedTeamId === 'WEREWOLF'
+      ? 'Werewolf aligned'
+      : 'Village aligned';
+  }
+  return 'Role remains hidden';
+}
+
+function formatDuration(totalSeconds: number): string {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
+function useDiscussionTimer(initialSeconds: number, onExpire: () => void) {
+  const [remaining, setRemaining] = useState(initialSeconds);
+  const [running, setRunning] = useState(true);
+  const deadline = useRef(Date.now() + initialSeconds * 1000);
+  const expireCallback = useRef(onExpire);
+  const fired = useRef(false);
+
+  useEffect(() => {
+    expireCallback.current = onExpire;
+  }, [onExpire]);
+
+  useEffect(() => {
+    if (!running) return;
+    const interval = window.setInterval(() => {
+      const next = Math.max(
+        0,
+        Math.ceil((deadline.current - Date.now()) / 1000),
+      );
+      setRemaining(next);
+      if (next === 0 && !fired.current) {
+        fired.current = true;
+        window.clearInterval(interval);
+        expireCallback.current();
+      }
+    }, 250);
+    return () => window.clearInterval(interval);
+  }, [running]);
+
+  function toggle() {
+    if (running) {
+      setRemaining(
+        Math.max(0, Math.ceil((deadline.current - Date.now()) / 1000)),
+      );
+      setRunning(false);
+    } else {
+      deadline.current = Date.now() + remaining * 1000;
+      setRunning(true);
+    }
+  }
+
+  function addThirty() {
+    if (running) deadline.current += 30_000;
+    setRemaining((value) => value + 30);
+  }
+
+  return { addThirty, remaining, running, toggle };
 }
 
 function useDeadlineCountdown(seconds: number, onTimeout: () => void): number {

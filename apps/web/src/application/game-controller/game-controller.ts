@@ -52,6 +52,7 @@ export interface GameControllerOptions {
   clock?: () => number;
   executeCommand: GameCommandExecutor;
   privateTurnProjector?: (state: MatchState) => PrivateTurnView | null;
+  publicViewProjector?: (state: MatchState) => PublicGameView;
   repository: MatchRepository;
 }
 
@@ -63,6 +64,7 @@ export class GameController {
   ) => PrivateTurnView | null;
   private readonly recovery: RecoveryCoordinator;
   private readonly repository: MatchRepository;
+  private readonly publicViewProjector: (state: MatchState) => PublicGameView;
   private configuration: JsonObject | undefined;
   private state: MatchState | null = null;
 
@@ -71,6 +73,7 @@ export class GameController {
     this.executeCommand = options.executeCommand;
     this.privateTurnProjector =
       options.privateTurnProjector ?? toPrivateTurnView;
+    this.publicViewProjector = options.publicViewProjector ?? toPublicGameView;
     this.repository = options.repository;
     this.recovery = new RecoveryCoordinator(options.repository);
   }
@@ -123,7 +126,7 @@ export class GameController {
   }
 
   getPublicView(): PublicGameView | null {
-    return this.state ? toPublicGameView(this.state) : null;
+    return this.state ? this.publicViewProjector(this.state) : null;
   }
 
   getPrivateTurnView(): PrivateTurnView | null {

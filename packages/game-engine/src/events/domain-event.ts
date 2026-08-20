@@ -27,6 +27,7 @@ export type DomainEvent =
       causes: DeathCause[];
       playerId: PlayerId;
     }
+  | { type: 'DEATHS_ANNOUNCED'; playerIds: PlayerId[] }
   | { type: 'VOTE_CAST'; voterId: PlayerId; targetPlayerId: PlayerId }
   | { type: 'VOTE_RESOLVED'; result: VoteResolution }
   | { type: 'PLAYER_CURSED'; playerId: PlayerId }

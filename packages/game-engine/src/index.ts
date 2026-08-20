@@ -68,6 +68,7 @@ export type {
 } from './domain/role-definition';
 export type { DomainEvent, VoteResolution } from './events/domain-event';
 export { createMatch } from './engine/create-match';
+export { announcePendingDeaths, startNextNight } from './engine/day-flow';
 export type {
   CreateMatchInput,
   CreateMatchPlayerInput,

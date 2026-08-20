@@ -91,6 +91,76 @@ describe('setup command executor', () => {
       subphase: 'ANNOUNCEMENT',
       type: 'MORNING',
     });
+
+    state = successfulState(
+      execute(state, { payload: {}, type: 'ANNOUNCE_DEATHS' }),
+    );
+    state = successfulState(
+      execute(state, { payload: {}, type: 'ENTER_MORNING_TRIGGERS' }),
+    );
+    state = successfulState(
+      execute(state, { payload: {}, type: 'CHECK_WINNER' }),
+    );
+    state = successfulState(
+      execute(state, { payload: {}, type: 'ENTER_MAYOR_ELECTION' }),
+    );
+    state = successfulState(
+      execute(state, { payload: {}, type: 'START_MAYOR_ELECTION' }),
+    );
+    for (const voterId of state.votingContext?.eligibleVoterIds ?? []) {
+      state = successfulState(
+        execute(state, {
+          payload: { targetPlayerId: 'player-1', voterId },
+          type: 'CAST_VOTE',
+        }),
+      );
+    }
+    state = successfulState(
+      execute(state, { payload: {}, type: 'RESOLVE_VOTE' }),
+    );
+    expect(state.publicOffice.mayorPlayerId).toBe('player-1');
+
+    state = successfulState(
+      execute(state, { payload: {}, type: 'ENTER_READY_FOR_DISCUSSION' }),
+    );
+    state = successfulState(
+      execute(state, { payload: {}, type: 'START_DISCUSSION' }),
+    );
+    state = successfulState(
+      execute(state, { payload: {}, type: 'ENTER_DAY_VOTING' }),
+    );
+    state = successfulState(
+      execute(state, { payload: {}, type: 'START_DAY_VOTE' }),
+    );
+    for (const voterId of state.votingContext?.eligibleVoterIds ?? []) {
+      state = successfulState(
+        execute(state, {
+          payload: { targetPlayerId: 'player-5', voterId },
+          type: 'CAST_VOTE',
+        }),
+      );
+    }
+    state = successfulState(
+      execute(state, { payload: {}, type: 'ENTER_DAY_DEATH_RESOLUTION' }),
+    );
+    state = successfulState(
+      execute(state, { payload: {}, type: 'RESOLVE_VOTE' }),
+    );
+    state = successfulState(
+      execute(state, { payload: {}, type: 'ANNOUNCE_DEATHS' }),
+    );
+    state = successfulState(
+      execute(state, { payload: {}, type: 'CHECK_WINNER' }),
+    );
+    state = successfulState(
+      execute(state, { payload: {}, type: 'START_NEXT_NIGHT' }),
+    );
+
+    expect(state.phase).toEqual({
+      nightNumber: 2,
+      subphase: 'PREPARE_QUEUE',
+      type: 'NIGHT',
+    });
   });
 });
 

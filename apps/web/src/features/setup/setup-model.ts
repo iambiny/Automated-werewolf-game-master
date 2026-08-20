@@ -10,6 +10,7 @@ export interface PlayerDraft {
 export type RoleCounts = Record<MvpRoleId, number>;
 
 export interface SetupRules {
+  deathRevealPolicy: 'NONE' | 'ROLE' | 'TEAM';
   discussionTimerSeconds: number;
   foolSurvivesFirstExecution: boolean;
   guardAllowConsecutiveTarget: boolean;
@@ -49,6 +50,7 @@ export const DEFAULT_ROLE_COUNTS: RoleCounts = {
 };
 
 export const DEFAULT_SETUP_RULES: SetupRules = {
+  deathRevealPolicy: 'ROLE',
   discussionTimerSeconds: 300,
   foolSurvivesFirstExecution: true,
   guardAllowConsecutiveTarget: false,
@@ -142,6 +144,12 @@ export function serializeSetupRules(rules: SetupRules): JsonObject {
 export function parseSetupRules(value: JsonObject | null): SetupRules {
   if (!value) return DEFAULT_SETUP_RULES;
   return {
+    deathRevealPolicy:
+      value.deathRevealPolicy === 'NONE' ||
+      value.deathRevealPolicy === 'ROLE' ||
+      value.deathRevealPolicy === 'TEAM'
+        ? value.deathRevealPolicy
+        : DEFAULT_SETUP_RULES.deathRevealPolicy,
     discussionTimerSeconds: numberOr(
       value.discussionTimerSeconds,
       DEFAULT_SETUP_RULES.discussionTimerSeconds,

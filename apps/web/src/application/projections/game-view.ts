@@ -20,16 +20,40 @@ export interface PublicPlayerView {
 
 export interface PublicGameView {
   cycle: number;
+  foolRevealedPlayerId?: PlayerId;
   matchId: string;
   nightResolved: boolean;
+  pendingHunter?: PlayerSummary;
   phase: GamePhase;
   players: PublicPlayerView[];
   publicOffice: {
     mayorElectionCompleted: boolean;
     mayorPlayerId?: PlayerId;
   };
+  revealedRoles?: PublicRoleReveal[];
   status: MatchStatus;
+  unannouncedDeaths?: PublicDeathView[];
+  voting?: PublicVotingView;
   winner?: WinnerResult;
+}
+
+export interface PublicDeathView extends PlayerSummary {
+  revealedRoleId?: RoleId;
+  revealedTeamId?: string;
+}
+
+export interface PublicVotingView {
+  ballotsCast: number;
+  currentVoter: PlayerSummary | null;
+  eligibleTargets: PlayerSummary[];
+  round: number;
+  totalVoters: number;
+  type: 'DAY_EXECUTION' | 'MAYOR_ELECTION';
+}
+
+export interface PublicRoleReveal extends PlayerSummary {
+  roleId: RoleId;
+  teamId: string;
 }
 
 export interface PrivateTurnView {
