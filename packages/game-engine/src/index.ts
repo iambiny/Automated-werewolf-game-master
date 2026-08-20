@@ -75,6 +75,13 @@ export type {
 export { isLegalPhaseTransition, transitionPhase } from './engine/phase-engine';
 export type { TransitionPhaseInput } from './engine/phase-engine';
 export { buildNightQueue } from './engine/night-queue';
+export {
+  completeRoleRegistration,
+  registerRole,
+  resetRoleRegistration,
+  startFirstNight,
+} from './engine/role-registration';
+export type { RegisterRoleInput } from './engine/role-registration';
 export { submitDemonWolfCurseDecision } from './engine/demon-wolf';
 export type { SubmitDemonWolfCurseInput } from './engine/demon-wolf';
 export {

@@ -48,11 +48,31 @@ export class IndexedDbMatchRepository implements MatchRepository {
   }
 
   async save(envelope: PersistedMatchEnvelope): Promise<void> {
-    await this.database.matches.put({
-      envelope,
-      id: envelope.match.id,
-      savedAt: envelope.savedAt,
-      status: envelope.match.status,
+    await this.database.transaction('rw', this.database.matches, async () => {
+      const otherActiveMatches = await this.database.matches
+        .where('status')
+        .anyOf('SETUP', 'ACTIVE')
+        .filter((record) => record.id !== envelope.match.id)
+        .toArray();
+      if (otherActiveMatches.length > 0) {
+        await this.database.matches.bulkPut(
+          otherActiveMatches.map((record) => ({
+            ...record,
+            envelope: {
+              ...record.envelope,
+              match: { ...record.envelope.match, status: 'ABANDONED' },
+            },
+            status: 'ABANDONED',
+          })),
+        );
+      }
+
+      await this.database.matches.put({
+        envelope,
+        id: envelope.match.id,
+        savedAt: envelope.savedAt,
+        status: envelope.match.status,
+      });
     });
   }
 

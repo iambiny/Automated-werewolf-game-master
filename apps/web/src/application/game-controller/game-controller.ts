@@ -4,6 +4,7 @@ import type {
   DomainEvent,
   DomainError,
   EngineResult,
+  JsonObject,
   MatchState,
 } from '@werewolf/game-engine';
 
@@ -17,6 +18,10 @@ import {
   type PrivateTurnView,
   type PublicGameView,
 } from '../projections/game-view';
+import {
+  toRoleRegistrationView,
+  type RoleRegistrationView,
+} from '../projections/role-registration-view';
 import {
   RecoveryCoordinator,
   type RecoveryResult,
@@ -54,6 +59,7 @@ export class GameController {
   private readonly executeCommand: GameCommandExecutor;
   private readonly recovery: RecoveryCoordinator;
   private readonly repository: MatchRepository;
+  private configuration: JsonObject | undefined;
   private state: MatchState | null = null;
 
   constructor(options: GameControllerOptions) {
@@ -63,18 +69,29 @@ export class GameController {
     this.recovery = new RecoveryCoordinator(options.repository);
   }
 
-  async createMatch(input: CreateMatchInput): Promise<GameCommandResult> {
+  async createMatch(
+    input: CreateMatchInput,
+    configuration?: JsonObject,
+  ): Promise<GameCommandResult> {
     const match = createMatch(input);
-    const saved = await this.persist(match);
+    const saved = await this.persist(match, configuration);
     if (!saved.ok) return saved;
 
+    this.configuration = configuration
+      ? structuredClone(configuration)
+      : undefined;
     this.state = match;
     return { events: match.events, ok: true };
   }
 
   async loadActiveMatch(): Promise<RecoveryResult> {
     const result = await this.recovery.loadActive();
-    if (result.status === 'READY') this.state = result.match;
+    if (result.status === 'READY') {
+      this.configuration = result.envelope.configuration
+        ? structuredClone(result.envelope.configuration)
+        : undefined;
+      this.state = result.match;
+    }
     return result;
   }
 
@@ -107,10 +124,21 @@ export class GameController {
     return this.state ? toPrivateTurnView(this.state) : null;
   }
 
-  private async persist(state: MatchState): Promise<GameCommandResult> {
+  getRoleRegistrationView(): RoleRegistrationView | null {
+    return this.state ? toRoleRegistrationView(this.state) : null;
+  }
+
+  getConfiguration(): JsonObject | null {
+    return this.configuration ? structuredClone(this.configuration) : null;
+  }
+
+  private async persist(
+    state: MatchState,
+    configuration = this.configuration,
+  ): Promise<GameCommandResult> {
     try {
       await this.repository.save(
-        createPersistedMatchEnvelope(state, this.clock()),
+        createPersistedMatchEnvelope(state, this.clock(), configuration),
       );
       return { events: [], ok: true };
     } catch {

@@ -1519,7 +1519,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@werewolf/role-catalog@workspace:packages/role-catalog":
+"@werewolf/role-catalog@workspace:*, @werewolf/role-catalog@workspace:packages/role-catalog":
   version: 0.0.0-use.local
   resolution: "@werewolf/role-catalog@workspace:packages/role-catalog"
   dependencies:
@@ -1538,6 +1538,7 @@ __metadata:
   resolution: "@werewolf/web@workspace:apps/web"
   dependencies:
     "@werewolf/game-engine": "workspace:*"
+    "@werewolf/role-catalog": "workspace:*"
     dexie: "npm:^4.0.11"
     next: "npm:^15.5.0"
     react: "npm:^19.1.1"

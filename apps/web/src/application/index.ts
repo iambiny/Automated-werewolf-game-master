@@ -20,6 +20,11 @@ export type {
   PublicGameView,
   PublicPlayerView,
 } from './projections/game-view';
+export { toRoleRegistrationView } from './projections/role-registration-view';
+export type {
+  RoleRegistrationPlayerView,
+  RoleRegistrationView,
+} from './projections/role-registration-view';
 export {
   getRecoveryCheckpoint,
   RecoveryCoordinator,

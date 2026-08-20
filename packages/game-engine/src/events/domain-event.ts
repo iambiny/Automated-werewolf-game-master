@@ -8,6 +8,7 @@ import type { MatchId, PlayerId, RoleId } from '@werewolf/shared';
 export type DomainEvent =
   | { type: 'MATCH_CREATED'; matchId: MatchId }
   | { type: 'ROLE_REGISTERED'; playerId: PlayerId; roleId: RoleId }
+  | { type: 'ROLE_REGISTRATION_RESET' }
   | { type: 'MATCH_STARTED' }
   | {
       type: 'PHASE_CHANGED';

@@ -1,10 +1,10 @@
-import type { MatchState } from '@werewolf/game-engine';
-import type { MatchId } from '@werewolf/game-engine';
+import type { JsonObject, MatchId, MatchState } from '@werewolf/game-engine';
 
 export const PERSISTED_MATCH_SCHEMA_VERSION = 1;
 export const ENGINE_VERSION = '0.0.0';
 
 export interface PersistedMatchEnvelope {
+  configuration?: JsonObject;
   engineVersion: string;
   match: MatchState;
   rulesetId: string;
@@ -22,8 +22,10 @@ export interface MatchRepository {
 export function createPersistedMatchEnvelope(
   match: MatchState,
   savedAt: number,
+  configuration?: JsonObject,
 ): PersistedMatchEnvelope {
   return {
+    ...(configuration ? { configuration: structuredClone(configuration) } : {}),
     engineVersion: ENGINE_VERSION,
     match,
     rulesetId: match.rulesetId,
