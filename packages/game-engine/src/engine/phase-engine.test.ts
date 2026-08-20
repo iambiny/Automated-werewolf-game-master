@@ -185,7 +185,7 @@ describe('transitionPhase', () => {
     );
     state = {
       ...state,
-      pendingTriggers: [{ playerId: 'player-1', type: 'DELAYED_TRIGGER' }],
+      pendingTriggers: [{ playerId: 'player-1', type: 'HUNTER_MORNING_SHOT' }],
     };
 
     const result = transitionPhase(state, {

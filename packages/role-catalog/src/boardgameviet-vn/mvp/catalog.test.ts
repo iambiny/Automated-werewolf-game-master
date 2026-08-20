@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 
 import { mvpRoleCatalog } from './catalog';
 import { MVP_PUBLIC_OFFICE_IDS, MVP_ROLE_IDS, type MvpRoleId } from './ids';
+import { createMvpRoleRuntimeState } from './rules';
 
 const ROLE_TEAMS: Record<MvpRoleId, RoleAssignment['teamId']> = {
   DEMON_WOLF: 'WEREWOLF',
@@ -102,6 +103,30 @@ describe('MVP role catalog', () => {
     expect(
       Object.values(mvpRoleCatalog).every((role) => role.hasPhysicalCard),
     ).toBe(true);
+  });
+
+  it('initializes fixed and configured consumable role state', () => {
+    const rules = {
+      witch: {
+        allowHealAndPoisonSameNight: false,
+        allowSelfHeal: false,
+        allowSelfPoison: false,
+        healPotionCount: 2,
+        poisonPotionCount: 3,
+        seesWerewolfVictim: true,
+      },
+    };
+
+    expect(createMvpRoleRuntimeState('demon', 'DEMON_WOLF', rules)).toEqual({
+      data: { curseAvailable: true },
+      playerId: 'demon',
+      roleId: 'DEMON_WOLF',
+    });
+    expect(createMvpRoleRuntimeState('witch', 'WITCH', rules)).toEqual({
+      data: { healPotionRemaining: 2, poisonPotionRemaining: 3 },
+      playerId: 'witch',
+      roleId: 'WITCH',
+    });
   });
 
   it('builds the metadata-driven MVP night order', () => {

@@ -43,11 +43,40 @@ export interface WerewolfAttackEffect extends EffectBase {
   visibility: 'INTERNAL';
 }
 
-export type GameEffect =
-  InvestigationResultEffect | ProtectEffect | WerewolfAttackEffect;
-
-export interface GameTrigger {
-  payload?: JsonObject;
-  playerId?: PlayerId;
-  type: string;
+export interface DemonWolfCurseIntentEffect extends EffectBase {
+  sourceRoleId: 'DEMON_WOLF';
+  type: 'DEMON_WOLF_CURSE_INTENT';
+  visibility: 'PRIVATE';
 }
+
+export interface HealEffect extends EffectBase {
+  sourceRoleId: 'WITCH';
+  type: 'HEAL';
+  visibility: 'INTERNAL';
+}
+
+export interface PoisonEffect extends EffectBase {
+  sourceRoleId: 'WITCH';
+  type: 'POISON';
+  visibility: 'INTERNAL';
+}
+
+export interface DirectKillEffect extends EffectBase {
+  payload: { cause: 'HUNTER_SHOT' };
+  sourceRoleId: 'HUNTER';
+  type: 'DIRECT_KILL';
+  visibility: 'INTERNAL';
+}
+
+export type GameEffect =
+  | DemonWolfCurseIntentEffect
+  | DirectKillEffect
+  | HealEffect
+  | InvestigationResultEffect
+  | PoisonEffect
+  | ProtectEffect
+  | WerewolfAttackEffect;
+
+export type GameTrigger =
+  | { playerId: PlayerId; type: 'HUNTER_MORNING_SHOT' }
+  | { playerId: PlayerId; type: 'HUNTER_DAY_SHOT' };

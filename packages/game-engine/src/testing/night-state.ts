@@ -20,6 +20,13 @@ const PLAYERS = [
     teamId: 'VILLAGE',
   },
   { displayName: 'Witch', id: 'witch', roleId: 'WITCH', teamId: 'VILLAGE' },
+  {
+    displayName: 'Hunter',
+    id: 'hunter',
+    roleId: 'HUNTER',
+    teamId: 'VILLAGE',
+  },
+  { displayName: 'Fool', id: 'fool', roleId: 'FOOL', teamId: 'VILLAGE' },
 ] as const;
 
 export function createNightTestState(
@@ -64,7 +71,57 @@ export function createNightTestState(
         },
       ]),
     ),
+    roleState: {
+      'demon-wolf': {
+        data: { curseAvailable: true },
+        playerId: 'demon-wolf',
+        roleId: 'DEMON_WOLF',
+      },
+      witch: {
+        data: { healPotionRemaining: 1, poisonPotionRemaining: 1 },
+        playerId: 'witch',
+        roleId: 'WITCH',
+      },
+    },
     status: 'ACTIVE',
+  };
+}
+
+export function setActiveNightTurn(
+  state: MatchState,
+  roleId: RoleId,
+  mode: 'ACTIVE' | 'DECOY' = 'ACTIVE',
+): MatchState {
+  const context = state.nightContext;
+  if (!context) throw new Error('Night test state has no night context.');
+
+  return {
+    ...state,
+    nightContext: {
+      ...context,
+      currentTurnIndex: 0,
+      queue: [{ mode, order: 10, roleId }],
+    },
+    phase: {
+      nightNumber: context.nightNumber,
+      subphase: 'ROLE_TURN',
+      type: 'NIGHT',
+    },
+  };
+}
+
+export function setNightResolutionPhase(state: MatchState): MatchState {
+  const context = state.nightContext;
+  if (!context) throw new Error('Night test state has no night context.');
+
+  return {
+    ...state,
+    phase: {
+      nightNumber: context.nightNumber,
+      subphase: 'RESOLUTION',
+      type: 'NIGHT',
+    },
+    phaseId: `night-${context.nightNumber}-resolution`,
   };
 }
 

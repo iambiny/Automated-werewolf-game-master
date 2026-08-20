@@ -5,4 +5,9 @@ export {
   type MvpRoleId,
 } from './boardgameviet-vn/mvp/ids';
 export { mvpRoleCatalog } from './boardgameviet-vn/mvp/catalog';
-export type { MvpCoreRuleConfig } from './boardgameviet-vn/mvp/rules';
+export {
+  createMvpExecutionInterceptors,
+  createMvpRoleRuntimeState,
+  type MvpCoreRuleConfig,
+  type MvpRuleConfig,
+} from './boardgameviet-vn/mvp/rules';

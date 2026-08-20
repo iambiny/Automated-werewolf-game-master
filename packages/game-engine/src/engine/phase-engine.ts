@@ -114,6 +114,14 @@ export function isLegalPhaseTransition(
       );
 
     case 'DAY_DEATH_RESOLUTION':
+      if (next.type === 'VOTING') {
+        return (
+          state.votingContext?.type === 'DAY_EXECUTION' &&
+          state.votingContext.round === next.round &&
+          next.dayNumber === current.dayNumber
+        );
+      }
+
       if (next.type === 'GAME_OVER') {
         return state.pendingTriggers.length === 0;
       }

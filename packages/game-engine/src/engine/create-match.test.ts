@@ -28,6 +28,7 @@ describe('createMatch', () => {
       displayName: 'An',
       lifeState: 'ALIVE',
       playerId: 'player-1',
+      publicFlags: [],
       seatIndex: 0,
     });
     expect(state.roleAssignments).toEqual({});

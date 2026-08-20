@@ -1,6 +1,7 @@
-import type { JsonObject, PlayerId, RoleId } from '@werewolf/shared';
+import type { PlayerId, RoleId } from '@werewolf/shared';
 
 import type { GameAction, GameEffect } from './action';
+import type { DeathCause } from './player';
 
 export interface NightTurn {
   mode: 'ACTIVE' | 'DECOY';
@@ -9,8 +10,11 @@ export interface NightTurn {
 }
 
 export interface NightResolutionResult {
-  data: JsonObject;
+  attackPrevented: boolean;
+  curseOutcome: 'NONE' | 'FAILED' | 'SUCCEEDED';
+  deaths: Array<{ causes: DeathCause[]; playerId: PlayerId }>;
   nightNumber: number;
+  transformedPlayerId?: PlayerId;
 }
 
 export interface NightContext {
@@ -34,5 +38,5 @@ export interface VotingContext {
 
 export interface WinnerResult {
   reason: string;
-  teamId: string;
+  teamId: 'VILLAGE' | 'WEREWOLF';
 }

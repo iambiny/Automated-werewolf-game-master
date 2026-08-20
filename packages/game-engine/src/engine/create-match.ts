@@ -27,6 +27,7 @@ export function createMatch(input: CreateMatchInput): MatchState {
         displayName: player.displayName,
         lifeState: 'ALIVE' as const,
         playerId: player.id,
+        publicFlags: [],
         seatIndex: player.seatIndex,
       },
     ]),

@@ -1,18 +1,35 @@
 export type {
+  DemonWolfCurseIntentEffect,
+  DirectKillEffect,
   GameAction,
   GameEffect,
   GameTrigger,
+  HealEffect,
   InvestigationResultEffect,
+  PoisonEffect,
   ProtectEffect,
   WerewolfAttackEffect,
 } from './domain/action';
 export type {
+  DemonWolfCurseDecision,
+  FoolExecutionBehavior,
+  FoolRules,
   GuardRules,
+  HunterRules,
   InvestigationValue,
+  MayorRules,
+  NightResolutionRules,
   SeerInvestigationMode,
   SeerRules,
+  TiePolicy,
   WerewolfRules,
+  WinRules,
+  WitchRules,
 } from './domain/core-role-rules';
+export type {
+  ExecutionInterceptionResult,
+  ExecutionInterceptor,
+} from './domain/execution';
 export type {
   NightContext,
   NightResolutionResult,
@@ -58,8 +75,20 @@ export type {
 export { isLegalPhaseTransition, transitionPhase } from './engine/phase-engine';
 export type { TransitionPhaseInput } from './engine/phase-engine';
 export { buildNightQueue } from './engine/night-queue';
+export { submitDemonWolfCurseDecision } from './engine/demon-wolf';
+export type { SubmitDemonWolfCurseInput } from './engine/demon-wolf';
+export {
+  createFoolExecutionInterceptor,
+  FOOL_NO_VOTE_FLAG,
+} from './engine/fool';
 export { submitGuardProtection } from './engine/guard';
 export type { SubmitGuardProtectionInput } from './engine/guard';
+export { submitHunterShot } from './engine/hunter';
+export type {
+  HunterShotResolutionRules,
+  SubmitHunterShotInput,
+} from './engine/hunter';
+export { resolveNight } from './engine/night-resolution';
 export { resolveSeerInspection, submitSeerInspection } from './engine/seer';
 export type { SubmitSeerInspectionInput } from './engine/seer';
 export {
@@ -67,6 +96,17 @@ export {
   submitWerewolfAttack,
 } from './engine/werewolf';
 export type { SubmitWerewolfAttackInput } from './engine/werewolf';
+export { declareWinner, evaluateWinner } from './engine/winner';
+export {
+  castVote,
+  getVoteWeight,
+  resolveVote,
+  startDayExecutionVote,
+  startMayorElection,
+} from './engine/voting';
+export type { VoteBallot, VoteResolutionRules } from './engine/voting';
+export { submitWitchHeal, submitWitchPoison } from './engine/witch';
+export type { SubmitWitchActionInput } from './engine/witch';
 export type {
   DomainError,
   DomainErrorCode,

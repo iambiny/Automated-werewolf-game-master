@@ -26,10 +26,22 @@ export type DomainEvent =
       causes: DeathCause[];
       playerId: PlayerId;
     }
+  | { type: 'VOTE_CAST'; voterId: PlayerId; targetPlayerId: PlayerId }
   | { type: 'VOTE_RESOLVED'; result: VoteResolution }
+  | { type: 'PLAYER_CURSED'; playerId: PlayerId }
+  | { type: 'DEMON_WOLF_CURSE_CONSUMED'; playerId: PlayerId }
+  | {
+      type: 'HUNTER_SHOT_RESOLVED';
+      playerId: PlayerId;
+      targetPlayerId: PlayerId;
+    }
+  | { type: 'MAYOR_ELECTED'; playerId: PlayerId }
+  | { type: 'MAYOR_VACATED'; playerId: PlayerId }
+  | { type: 'EXECUTION_INTERCEPTED'; playerId: PlayerId; roleId: RoleId }
   | { type: 'WINNER_DECLARED'; winner: WinnerResult };
 
 export interface VoteResolution {
   eliminatedPlayerId?: PlayerId;
+  tallies: Array<{ targetPlayerId: PlayerId; weightedVotes: number }>;
   tiedPlayerIds: PlayerId[];
 }

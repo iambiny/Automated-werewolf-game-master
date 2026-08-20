@@ -20,5 +20,6 @@ export interface PlayerRuntimeState {
   displayName: string;
   lifeState: LifeState;
   playerId: PlayerId;
+  publicFlags: string[];
   seatIndex: number;
 }
