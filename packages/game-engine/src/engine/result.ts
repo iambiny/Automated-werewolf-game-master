@@ -9,7 +9,16 @@ export type DomainErrorCode =
   | 'INVALID_TARGET'
   | 'ACTION_NOT_AVAILABLE'
   | 'ROLE_NOT_ELIGIBLE'
+  | 'ALREADY_SUBMITTED'
   | 'MATCH_ALREADY_COMPLETED';
+
+export function domainError(
+  code: DomainErrorCode,
+  message: string,
+  details?: JsonObject,
+): DomainError {
+  return { code, details, message };
+}
 
 export interface DomainError {
   code: DomainErrorCode;
