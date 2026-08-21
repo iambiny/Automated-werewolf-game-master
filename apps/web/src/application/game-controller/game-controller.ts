@@ -66,6 +66,7 @@ export class GameController {
   private readonly repository: MatchRepository;
   private readonly publicViewProjector: (state: MatchState) => PublicGameView;
   private configuration: JsonObject | undefined;
+  private runtime: JsonObject | undefined;
   private state: MatchState | null = null;
 
   constructor(options: GameControllerOptions) {
@@ -90,6 +91,7 @@ export class GameController {
       ? structuredClone(configuration)
       : undefined;
     this.state = match;
+    this.runtime = undefined;
     return { events: match.events, ok: true };
   }
 
@@ -100,6 +102,9 @@ export class GameController {
         ? structuredClone(result.envelope.configuration)
         : undefined;
       this.state = result.match;
+      this.runtime = result.envelope.runtime
+        ? structuredClone(result.envelope.runtime)
+        : undefined;
     }
     return result;
   }
@@ -141,13 +146,39 @@ export class GameController {
     return this.configuration ? structuredClone(this.configuration) : null;
   }
 
+  getRuntimeState(): JsonObject | null {
+    return this.runtime ? structuredClone(this.runtime) : null;
+  }
+
+  async saveRuntimeState(runtime: JsonObject): Promise<GameCommandResult> {
+    if (!this.state) {
+      return {
+        error: {
+          code: 'NO_ACTIVE_MATCH',
+          message: 'No active match is loaded.',
+        },
+        ok: false,
+      };
+    }
+    const saved = await this.persist(this.state, this.configuration, runtime);
+    if (!saved.ok) return saved;
+    this.runtime = structuredClone(runtime);
+    return { events: [], ok: true };
+  }
+
   private async persist(
     state: MatchState,
     configuration = this.configuration,
+    runtime = this.runtime,
   ): Promise<GameCommandResult> {
     try {
       await this.repository.save(
-        createPersistedMatchEnvelope(state, this.clock(), configuration),
+        createPersistedMatchEnvelope(
+          state,
+          this.clock(),
+          configuration,
+          runtime,
+        ),
       );
       return { events: [], ok: true };
     } catch {

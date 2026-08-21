@@ -33,7 +33,16 @@ export class RecoveryCoordinator {
   constructor(private readonly repository: MatchRepository) {}
 
   async loadActive(): Promise<RecoveryResult> {
-    const envelope: unknown = await this.repository.getActive();
+    let envelope: unknown;
+    try {
+      envelope = await this.repository.getActive();
+    } catch {
+      return {
+        code: 'INVALID_PERSISTED_MATCH',
+        message: 'Local storage is unavailable, so no match was loaded.',
+        status: 'INVALID',
+      };
+    }
     if (envelope === null) return { status: 'NONE' };
 
     const validation = validatePersistedMatchEnvelope(envelope);
@@ -72,6 +81,7 @@ export function validatePersistedMatchEnvelope(
     typeof value.rulesetVersion !== 'string' ||
     typeof value.savedAt !== 'number' ||
     !Number.isFinite(value.savedAt) ||
+    (value.runtime !== undefined && !isRecord(value.runtime)) ||
     !isMatchState(value.match) ||
     (value.match.status !== 'SETUP' && value.match.status !== 'ACTIVE') ||
     value.rulesetId !== value.match.rulesetId ||
@@ -157,17 +167,37 @@ function isMatchState(value: unknown): value is MatchState {
 
 function isGamePhase(value: unknown): value is GamePhase {
   if (!isRecord(value) || typeof value.type !== 'string') return false;
-  return [
-    'SETUP',
-    'ROLE_REGISTRATION',
-    'PRE_GAME_VALIDATION',
-    'NIGHT',
-    'MORNING',
-    'DISCUSSION',
-    'VOTING',
-    'DAY_DEATH_RESOLUTION',
-    'GAME_OVER',
-  ].includes(value.type);
+  switch (value.type) {
+    case 'SETUP':
+    case 'ROLE_REGISTRATION':
+    case 'PRE_GAME_VALIDATION':
+    case 'GAME_OVER':
+      return true;
+    case 'NIGHT':
+      return (
+        Number.isInteger(value.nightNumber) &&
+        ['PREPARE_QUEUE', 'ROLE_TURN', 'RESOLUTION'].includes(
+          String(value.subphase),
+        )
+      );
+    case 'MORNING':
+      return (
+        Number.isInteger(value.dayNumber) &&
+        [
+          'ANNOUNCEMENT',
+          'MORNING_TRIGGERS',
+          'MAYOR_ELECTION',
+          'READY_FOR_DISCUSSION',
+        ].includes(String(value.subphase))
+      );
+    case 'DISCUSSION':
+    case 'DAY_DEATH_RESOLUTION':
+      return Number.isInteger(value.dayNumber);
+    case 'VOTING':
+      return Number.isInteger(value.dayNumber) && Number.isInteger(value.round);
+    default:
+      return false;
+  }
 }
 
 function isMatchStatus(value: unknown): value is MatchStatus {

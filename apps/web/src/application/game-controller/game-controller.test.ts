@@ -124,4 +124,35 @@ describe('GameController', () => {
     expect(reloaded.getPublicView()?.matchId).toBe('match-1');
     expect(reloaded.getPrivateTurnView()).toBeNull();
   });
+
+  it('persists runtime recovery data without exposing a failed write', async () => {
+    const repository = new RecordingRepository();
+    const controller = new GameController({ executeCommand, repository });
+    await controller.createMatch(createInput);
+
+    await expect(
+      controller.saveRuntimeState({
+        discussionTimer: {
+          deadlineAt: 5000,
+          paused: false,
+          phaseId: 'discussion-1',
+          remainingMs: 3000,
+        },
+      }),
+    ).resolves.toMatchObject({ ok: true });
+    expect(controller.getRuntimeState()).toMatchObject({
+      discussionTimer: { deadlineAt: 5000 },
+    });
+
+    repository.failNextSave = true;
+    await expect(
+      controller.saveRuntimeState({ discussionTimer: null }),
+    ).resolves.toMatchObject({
+      error: { code: 'PERSISTENCE_FAILED' },
+      ok: false,
+    });
+    expect(controller.getRuntimeState()).toMatchObject({
+      discussionTimer: { deadlineAt: 5000 },
+    });
+  });
 });

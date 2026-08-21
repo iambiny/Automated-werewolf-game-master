@@ -7,6 +7,7 @@ export interface PersistedMatchEnvelope {
   configuration?: JsonObject;
   engineVersion: string;
   match: MatchState;
+  runtime?: JsonObject;
   rulesetId: string;
   rulesetVersion: string;
   savedAt: number;
@@ -23,11 +24,13 @@ export function createPersistedMatchEnvelope(
   match: MatchState,
   savedAt: number,
   configuration?: JsonObject,
+  runtime?: JsonObject,
 ): PersistedMatchEnvelope {
   return {
     ...(configuration ? { configuration: structuredClone(configuration) } : {}),
     engineVersion: ENGINE_VERSION,
     match,
+    ...(runtime ? { runtime: structuredClone(runtime) } : {}),
     rulesetId: match.rulesetId,
     rulesetVersion: match.rulesetVersion,
     savedAt,

@@ -10,6 +10,20 @@ import React, {
 import { MVP_ROLE_IDS, type MvpRoleId } from '@werewolf/role-catalog';
 
 import { IndexedDbMatchRepository } from '../../adapters/persistence/indexeddb-match-repository';
+import {
+  BrowserAudioService,
+  type AudioKey,
+} from '../../adapters/audio/browser-audio-service';
+import {
+  createDeadlineTimer,
+  extendDeadlineTimer,
+  getRemainingMs,
+  parseDeadlineTimer,
+  pauseDeadlineTimer,
+  resumeDeadlineTimer,
+  type DeadlineTimerSnapshot,
+} from '../../adapters/timer/deadline-timer';
+import { ScreenWakeLock } from '../../adapters/wake-lock/screen-wake-lock';
 import { GameController } from '../../application/game-controller/game-controller';
 import type {
   PrivateTurnView,
@@ -20,6 +34,7 @@ import type {
 } from '../../application/projections/game-view';
 import type { RoleRegistrationView } from '../../application/projections/role-registration-view';
 import type { RecoveryCheckpoint } from '../../application/recovery/recovery-coordinator';
+import { registerServiceWorker } from '../../pwa/register-service-worker';
 import { toMvpPublicGameView } from '../day/mvp-public-game-view';
 import { toMvpPrivateTurnView } from '../night/mvp-private-turn-view';
 import { createSetupCommandExecutor } from '../role-registration/setup-command-executor';
@@ -41,6 +56,8 @@ import {
 
 type Screen =
   | 'HOME'
+  | 'RECOVERY_ERROR'
+  | 'NEW_GAME_WARNING'
   | 'PLAYERS'
   | 'ROLES'
   | 'RULES'
@@ -69,6 +86,7 @@ type Screen =
 
 export function GameApp() {
   const controllerRef = useRef<GameController | null>(null);
+  const audioRef = useRef<BrowserAudioService | null>(null);
   const rulesRef = useRef(toMvpRuleConfig(DEFAULT_SETUP_RULES));
   const setupRulesRef = useRef(DEFAULT_SETUP_RULES);
   const nextPlayerId = useRef(9);
@@ -92,6 +110,14 @@ export function GameApp() {
   const [witchActionTaken, setWitchActionTaken] = useState(false);
   const [announcedDeaths, setAnnouncedDeaths] = useState<PublicDeathView[]>([]);
   const [dayMessage, setDayMessage] = useState<string | null>(null);
+  const [audioStatus, setAudioStatus] = useState<'LOCKED' | 'READY' | 'FAILED'>(
+    'LOCKED',
+  );
+  const [narrationVolume, setNarrationVolume] = useState(0.85);
+  const [effectsVolume, setEffectsVolume] = useState(0.7);
+  const [recoveryIssue, setRecoveryIssue] = useState<string | null>(null);
+  const [discussionTimer, setDiscussionTimer] =
+    useState<DeadlineTimerSnapshot | null>(null);
 
   const hidePrivateContent = useCallback(() => {
     setRevealed(false);
@@ -106,6 +132,13 @@ export function GameApp() {
 
   useEffect(() => {
     let active = true;
+    audioRef.current = new BrowserAudioService();
+    const audioPreferences = loadAudioPreferences();
+    setNarrationVolume(audioPreferences.narration);
+    setEffectsVolume(audioPreferences.effects);
+    audioRef.current.setNarrationVolume(audioPreferences.narration);
+    audioRef.current.setEffectsVolume(audioPreferences.effects);
+    void registerServiceWorker();
     const repository = new IndexedDbMatchRepository();
     const controller = new GameController({
       executeCommand: createSetupCommandExecutor(() => rulesRef.current),
@@ -126,6 +159,12 @@ export function GameApp() {
         rulesRef.current = toMvpRuleConfig(persistedRules);
         setRules(persistedRules);
         setResumeView(controller.getPublicView());
+        setDiscussionTimer(
+          parseDeadlineTimer(controller.getRuntimeState()?.discussionTimer),
+        );
+      } else if (result.status === 'INVALID') {
+        setRecoveryIssue(result.message);
+        setScreen('RECOVERY_ERROR');
       }
       setLoading(false);
     });
@@ -133,17 +172,71 @@ export function GameApp() {
     return () => {
       active = false;
       repository.close();
+      audioRef.current?.stopAll();
+      audioRef.current = null;
       controllerRef.current = null;
     };
   }, []);
 
+  useWakeLock(resumeView !== null && resumeView.phase.type !== 'GAME_OVER');
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    const key = audioKeyForScreen(screen);
+    if (!audio || !key || audioStatus !== 'READY') return;
+    audio.stopAll();
+    void audio.play(key).catch(() => setAudioStatus('FAILED'));
+  }, [audioStatus, privateTurn?.roleId, screen]);
+
   function beginNewGame() {
+    if (resumeView && resumeView.phase.type !== 'GAME_OVER') {
+      setScreen('NEW_GAME_WARNING');
+      return;
+    }
+    resetForNewGame();
+  }
+
+  function resetForNewGame() {
     setPlayers(DEFAULT_PLAYERS.map((player) => ({ ...player })));
     setRoleCounts({ ...DEFAULT_ROLE_COUNTS });
     setRules({ ...DEFAULT_SETUP_RULES });
     setupRulesRef.current = DEFAULT_SETUP_RULES;
     setError(null);
+    setRecoveryIssue(null);
+    setDiscussionTimer(null);
     setScreen('PLAYERS');
+  }
+
+  async function testSound() {
+    const audio = audioRef.current;
+    if (!audio) return;
+    try {
+      await audio.unlock();
+      await audio.preload([
+        'NIGHT_START',
+        'ROLE_WAKE',
+        'ROLE_SLEEP',
+        'DAWN',
+        'DISCUSSION_START',
+        'VOTE_START',
+        'GAME_OVER',
+      ]);
+      setAudioStatus('READY');
+    } catch {
+      setAudioStatus('FAILED');
+    }
+  }
+
+  function changeAudioVolume(channel: 'narration' | 'effects', value: number) {
+    if (channel === 'narration') {
+      setNarrationVolume(value);
+      audioRef.current?.setNarrationVolume(value);
+      saveAudioPreferences(value, effectsVolume);
+    } else {
+      setEffectsVolume(value);
+      audioRef.current?.setEffectsVolume(value);
+      saveAudioPreferences(narrationVolume, value);
+    }
   }
 
   function resumeGame() {
@@ -180,6 +273,19 @@ export function GameApp() {
         void continueAfterResolvedTriggers('MORNING');
       }
     } else if (resumeView.phase.type === 'DISCUSSION') {
+      const recovered = discussionTimer;
+      if (recovered && !recovered.paused && getRemainingMs(recovered) === 0) {
+        void beginDayVote();
+        return;
+      }
+      if (!recovered) {
+        const fallback = createDeadlineTimer(
+          discussionTimerKey(resumeView),
+          rules.discussionTimerSeconds * 1000,
+        );
+        setDiscussionTimer(fallback);
+        void saveDiscussionTimer(fallback);
+      }
       setScreen('DISCUSSION');
     } else if (resumeView.phase.type === 'VOTING') {
       setScreen('DAY_VOTE');
@@ -671,6 +777,20 @@ export function GameApp() {
         return setError(ready.error.message);
       }
     }
+    const currentView = controller.getPublicView();
+    if (!currentView) {
+      setBusy(false);
+      return;
+    }
+    const timer = createDeadlineTimer(
+      discussionTimerKey(currentView),
+      rules.discussionTimerSeconds * 1000,
+    );
+    const timerSaved = await saveDiscussionTimer(timer);
+    if (!timerSaved) {
+      setBusy(false);
+      return;
+    }
     const started = await controller.dispatch({
       payload: {},
       type: 'START_DISCUSSION',
@@ -678,6 +798,7 @@ export function GameApp() {
     setBusy(false);
     if (!started.ok) return setError(started.error.message);
     setResumeView(controller.getPublicView());
+    setDiscussionTimer(timer);
     setScreen('DISCUSSION');
   }
 
@@ -686,6 +807,10 @@ export function GameApp() {
     if (!controller) return;
     setBusy(true);
     setError(null);
+    if (!(await saveDiscussionTimer(null))) {
+      setBusy(false);
+      return;
+    }
     const entered = await controller.dispatch({
       payload: {},
       type: 'ENTER_DAY_VOTING',
@@ -701,7 +826,33 @@ export function GameApp() {
     setBusy(false);
     if (!started.ok) return setError(started.error.message);
     setResumeView(controller.getPublicView());
+    setDiscussionTimer(null);
     setScreen('DAY_VOTE');
+  }
+
+  async function saveDiscussionTimer(
+    timer: DeadlineTimerSnapshot | null,
+  ): Promise<boolean> {
+    const controller = controllerRef.current;
+    if (!controller) return false;
+    const current = controller.getRuntimeState() ?? {};
+    const value = timer
+      ? {
+          deadlineAt: timer.deadlineAt,
+          paused: timer.paused,
+          phaseId: timer.phaseId,
+          remainingMs: timer.remainingMs,
+        }
+      : null;
+    const result = await controller.saveRuntimeState({
+      ...current,
+      discussionTimer: value,
+    });
+    if (!result.ok) {
+      setError(result.error.message);
+      return false;
+    }
+    return true;
   }
 
   async function resolveDayVote() {
@@ -786,6 +937,11 @@ export function GameApp() {
     <main className={`app-shell screen-${screen.toLowerCase()}`}>
       <AmbientBackdrop />
       <div className="app-content">
+        {audioStatus === 'FAILED' && (
+          <div className="status-banner" role="status">
+            Audio is unavailable. Continue with the on-screen instructions.
+          </div>
+        )}
         {screen === 'HOME' && (
           <HomeScreen
             hasResume={resumeView !== null}
@@ -795,8 +951,29 @@ export function GameApp() {
             resumeLabel={describePhase(resumeView)}
           />
         )}
+        {screen === 'RECOVERY_ERROR' && (
+          <RecoveryErrorScreen
+            message={
+              recoveryIssue ?? 'The saved match cannot be resumed safely.'
+            }
+            onStartNew={resetForNewGame}
+          />
+        )}
+        {screen === 'NEW_GAME_WARNING' && (
+          <NewGameWarning
+            onCancel={() => setScreen('HOME')}
+            onContinue={resetForNewGame}
+          />
+        )}
         {screen === 'SETTINGS' && (
-          <SettingsInfo onBack={() => setScreen('HOME')} />
+          <SettingsInfo
+            audioStatus={audioStatus}
+            effectsVolume={effectsVolume}
+            narrationVolume={narrationVolume}
+            onBack={() => setScreen('HOME')}
+            onChangeVolume={changeAudioVolume}
+            onTestSound={() => void testSound()}
+          />
         )}
         {screen === 'PLAYERS' && (
           <PlayerSetup
@@ -863,9 +1040,11 @@ export function GameApp() {
         )}
         {screen === 'READY' && (
           <ReadyScreen
+            audioStatus={audioStatus}
             busy={busy}
             error={error}
             onStart={() => void startNight()}
+            onTestSound={() => void testSound()}
             playerCount={resumeView?.players.length ?? players.length}
           />
         )}
@@ -993,9 +1172,14 @@ export function GameApp() {
             onContinue={() => void beginDiscussion()}
           />
         )}
-        {screen === 'DISCUSSION' && (
+        {screen === 'DISCUSSION' && discussionTimer && (
           <DiscussionScreen
-            initialSeconds={rules.discussionTimerSeconds}
+            error={error}
+            initialTimer={discussionTimer}
+            onChange={(timer) => {
+              setDiscussionTimer(timer);
+              void saveDiscussionTimer(timer);
+            }}
             onEnd={() => void beginDayVote()}
           />
         )}
@@ -1080,6 +1264,53 @@ function HomeScreen({
       <p className="home-footnote">
         Designed for a single phone passed around the table
       </p>
+    </section>
+  );
+}
+
+function RecoveryErrorScreen({
+  message,
+  onStartNew,
+}: {
+  message: string;
+  onStartNew: () => void;
+}) {
+  return (
+    <section className="center-card panel-enter">
+      <div className="warning-mark">!</div>
+      <p className="eyebrow">Safe recovery</p>
+      <h1>This match cannot be resumed.</h1>
+      <p>{message}</p>
+      <p>No outcome was guessed and no private information was displayed.</p>
+      <button className="button button-primary" onClick={onStartNew}>
+        Start a new game
+      </button>
+    </section>
+  );
+}
+
+function NewGameWarning({
+  onCancel,
+  onContinue,
+}: {
+  onCancel: () => void;
+  onContinue: () => void;
+}) {
+  return (
+    <section className="center-card panel-enter">
+      <div className="warning-mark">!</div>
+      <p className="eyebrow">Active match</p>
+      <h2>Replace the saved game?</h2>
+      <p>
+        Starting registration for another game will archive the current match
+        when the new match is saved.
+      </p>
+      <button className="button button-primary" onClick={onContinue}>
+        Continue with a new game
+      </button>
+      <button className="button button-secondary" onClick={onCancel}>
+        Keep current match
+      </button>
     </section>
   );
 }
@@ -1560,14 +1791,18 @@ function RegistrationError({
 }
 
 function ReadyScreen({
+  audioStatus,
   busy,
   error,
   onStart,
+  onTestSound,
   playerCount,
 }: {
+  audioStatus: 'LOCKED' | 'READY' | 'FAILED';
   busy: boolean;
   error: string | null;
   onStart: () => void;
+  onTestSound: () => void;
   playerCount: number;
 }) {
   return (
@@ -1587,6 +1822,14 @@ function ReadyScreen({
         <li>Place the phone where everyone can hear</li>
       </ul>
       <InlineError message={error} />
+      <button className="button button-secondary" onClick={onTestSound}>
+        {audioStatus === 'READY' ? 'Sound ready — test again' : 'Test sound'}
+      </button>
+      <small className="audio-help">
+        {audioStatus === 'FAILED'
+          ? 'Sound could not start; visual instructions will remain available.'
+          : 'One tap unlocks offline audio for the match.'}
+      </small>
       <button
         className="button button-primary"
         disabled={busy}
@@ -2235,13 +2478,17 @@ function MayorResultScreen({
 }
 
 function DiscussionScreen({
-  initialSeconds,
+  error,
+  initialTimer,
+  onChange,
   onEnd,
 }: {
-  initialSeconds: number;
+  error: string | null;
+  initialTimer: DeadlineTimerSnapshot;
+  onChange: (timer: DeadlineTimerSnapshot) => void;
   onEnd: () => void;
 }) {
-  const timer = useDiscussionTimer(initialSeconds, onEnd);
+  const timer = useDiscussionTimer(initialTimer, onChange, onEnd);
   return (
     <section className="discussion-screen panel-enter">
       <p className="eyebrow">Day discussion</p>
@@ -2266,6 +2513,7 @@ function DiscussionScreen({
           +30 seconds
         </button>
       </div>
+      <InlineError message={error} />
       <button className="button button-primary day-action" onClick={onEnd}>
         End discussion and vote
       </button>
@@ -2349,7 +2597,21 @@ function GameOverScreen({
   );
 }
 
-function SettingsInfo({ onBack }: { onBack: () => void }) {
+function SettingsInfo({
+  audioStatus,
+  effectsVolume,
+  narrationVolume,
+  onBack,
+  onChangeVolume,
+  onTestSound,
+}: {
+  audioStatus: 'LOCKED' | 'READY' | 'FAILED';
+  effectsVolume: number;
+  narrationVolume: number;
+  onBack: () => void;
+  onChangeVolume: (channel: 'narration' | 'effects', value: number) => void;
+  onTestSound: () => void;
+}) {
   return (
     <section className="center-card panel-enter">
       <button className="back-button" onClick={onBack}>
@@ -2364,6 +2626,41 @@ function SettingsInfo({ onBack }: { onBack: () => void }) {
       <div className="info-block">
         <strong>Privacy by design</strong>
         <span>Private results are never included in the public game view.</span>
+      </div>
+      <div className="audio-settings">
+        <label>
+          <span>Narration volume</span>
+          <input
+            aria-label="Narration volume"
+            max="1"
+            min="0"
+            onChange={(event) =>
+              onChangeVolume('narration', Number(event.target.value))
+            }
+            step="0.05"
+            type="range"
+            value={narrationVolume}
+          />
+        </label>
+        <label>
+          <span>Effects volume</span>
+          <input
+            aria-label="Effects volume"
+            max="1"
+            min="0"
+            onChange={(event) =>
+              onChangeVolume('effects', Number(event.target.value))
+            }
+            step="0.05"
+            type="range"
+            value={effectsVolume}
+          />
+        </label>
+        <button className="button button-secondary" onClick={onTestSound}>
+          {audioStatus === 'READY'
+            ? 'Test sound again'
+            : 'Unlock and test sound'}
+        </button>
       </div>
     </section>
   );
@@ -2580,10 +2877,15 @@ function formatDuration(totalSeconds: number): string {
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
-function useDiscussionTimer(initialSeconds: number, onExpire: () => void) {
-  const [remaining, setRemaining] = useState(initialSeconds);
-  const [running, setRunning] = useState(true);
-  const deadline = useRef(Date.now() + initialSeconds * 1000);
+function useDiscussionTimer(
+  initialTimer: DeadlineTimerSnapshot,
+  onChange: (timer: DeadlineTimerSnapshot) => void,
+  onExpire: () => void,
+) {
+  const [timer, setTimer] = useState(initialTimer);
+  const [remaining, setRemaining] = useState(() =>
+    Math.ceil(getRemainingMs(initialTimer) / 1000),
+  );
   const expireCallback = useRef(onExpire);
   const fired = useRef(false);
 
@@ -2592,12 +2894,9 @@ function useDiscussionTimer(initialSeconds: number, onExpire: () => void) {
   }, [onExpire]);
 
   useEffect(() => {
-    if (!running) return;
+    if (timer.paused) return;
     const interval = window.setInterval(() => {
-      const next = Math.max(
-        0,
-        Math.ceil((deadline.current - Date.now()) / 1000),
-      );
+      const next = Math.ceil(getRemainingMs(timer) / 1000);
       setRemaining(next);
       if (next === 0 && !fired.current) {
         fired.current = true;
@@ -2606,26 +2905,25 @@ function useDiscussionTimer(initialSeconds: number, onExpire: () => void) {
       }
     }, 250);
     return () => window.clearInterval(interval);
-  }, [running]);
+  }, [timer]);
 
   function toggle() {
-    if (running) {
-      setRemaining(
-        Math.max(0, Math.ceil((deadline.current - Date.now()) / 1000)),
-      );
-      setRunning(false);
-    } else {
-      deadline.current = Date.now() + remaining * 1000;
-      setRunning(true);
-    }
+    const next = timer.paused
+      ? resumeDeadlineTimer(timer)
+      : pauseDeadlineTimer(timer);
+    setTimer(next);
+    setRemaining(Math.ceil(getRemainingMs(next) / 1000));
+    onChange(next);
   }
 
   function addThirty() {
-    if (running) deadline.current += 30_000;
-    setRemaining((value) => value + 30);
+    const next = extendDeadlineTimer(timer, 30_000);
+    setTimer(next);
+    setRemaining(Math.ceil(getRemainingMs(next) / 1000));
+    onChange(next);
   }
 
-  return { addThirty, remaining, running, toggle };
+  return { addThirty, remaining, running: !timer.paused, toggle };
 }
 
 function useDeadlineCountdown(seconds: number, onTimeout: () => void): number {
@@ -2669,4 +2967,82 @@ function usePrivacyGuard(active: boolean, hide: () => void) {
       document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, [active, hide]);
+}
+
+function useWakeLock(active: boolean) {
+  useEffect(() => {
+    if (!active) return;
+    const wakeLock = new ScreenWakeLock();
+    const request = () => {
+      if (document.visibilityState === 'visible') void wakeLock.request();
+    };
+    request();
+    document.addEventListener('visibilitychange', request);
+    return () => {
+      document.removeEventListener('visibilitychange', request);
+      void wakeLock.release();
+    };
+  }, [active]);
+}
+
+function discussionTimerKey(view: PublicGameView): string {
+  return `${view.matchId}:discussion:${view.cycle}`;
+}
+
+function audioKeyForScreen(screen: Screen): AudioKey | null {
+  switch (screen) {
+    case 'NIGHT_READY':
+      return 'NIGHT_START';
+    case 'NIGHT_WAKE':
+      return 'ROLE_WAKE';
+    case 'NIGHT_SLEEP':
+      return 'ROLE_SLEEP';
+    case 'DAWN':
+      return 'DAWN';
+    case 'DISCUSSION':
+      return 'DISCUSSION_START';
+    case 'DAY_VOTE':
+    case 'MAYOR_VOTE':
+      return 'VOTE_START';
+    case 'GAME_OVER':
+      return 'GAME_OVER';
+    default:
+      return null;
+  }
+}
+
+const AUDIO_PREFERENCES_KEY = 'werewolf-audio-preferences-v1';
+
+function loadAudioPreferences(): { effects: number; narration: number } {
+  try {
+    const value = JSON.parse(
+      localStorage.getItem(AUDIO_PREFERENCES_KEY) ?? 'null',
+    ) as unknown;
+    if (typeof value === 'object' && value !== null) {
+      const record = value as Record<string, unknown>;
+      if (
+        typeof record.effects === 'number' &&
+        typeof record.narration === 'number'
+      ) {
+        return {
+          effects: Math.max(0, Math.min(1, record.effects)),
+          narration: Math.max(0, Math.min(1, record.narration)),
+        };
+      }
+    }
+  } catch {
+    // Corrupt preferences never prevent the game from loading.
+  }
+  return { effects: 0.7, narration: 0.85 };
+}
+
+function saveAudioPreferences(narration: number, effects: number): void {
+  try {
+    localStorage.setItem(
+      AUDIO_PREFERENCES_KEY,
+      JSON.stringify({ effects, narration }),
+    );
+  } catch {
+    // Preferences are optional; active match state remains in IndexedDB.
+  }
 }
