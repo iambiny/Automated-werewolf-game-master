@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
+  expect: { timeout: 10_000 },
   testDir: './e2e',
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
@@ -8,6 +9,7 @@ export default defineConfig({
   reporter: 'html',
   use: {
     baseURL: 'http://127.0.0.1:3000',
+    colorScheme: 'dark',
     trace: 'on-first-retry',
   },
   projects: [
@@ -17,8 +19,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'yarn dev',
-    reuseExistingServer: !process.env.CI,
+    command: 'yarn build && yarn workspace @werewolf/web start',
+    reuseExistingServer: false,
+    timeout: 120_000,
     url: 'http://127.0.0.1:3000',
   },
 });

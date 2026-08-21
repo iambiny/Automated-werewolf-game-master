@@ -26,6 +26,9 @@ export default tseslint.config(
         ...globals.node,
       },
     },
+    rules: {
+      'no-console': 'error',
+    },
   },
   {
     files: ['apps/web/**/*.{ts,tsx}'],
@@ -47,6 +50,14 @@ export default tseslint.config(
     settings: {
       next: {
         rootDir: 'apps/web',
+      },
+    },
+  },
+  {
+    files: ['apps/web/public/sw.js'],
+    languageOptions: {
+      globals: {
+        ...globals.serviceworker,
       },
     },
   },
