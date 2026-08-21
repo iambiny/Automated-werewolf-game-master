@@ -7,3 +7,4 @@ playwright-report
 test-results
 yarn.lock
 apps/web/public/icons/*.svg
+.env.example

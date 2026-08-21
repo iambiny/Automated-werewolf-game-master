@@ -14,7 +14,11 @@ const ROLES = [
 test('completes the full MVP offline and recovers every safe checkpoint', async ({
   context,
   page,
-}) => {
+}, testInfo) => {
+  test.skip(
+    testInfo.project.name !== 'desktop-chromium',
+    'The full gameplay path runs once; mobile projects run the release smoke.',
+  );
   test.setTimeout(240_000);
 
   await page.goto('/');
@@ -138,6 +142,12 @@ test('exposes installable PWA metadata and no secret browser logs', async ({
     'href',
     '/manifest.webmanifest',
   );
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth - window.innerWidth,
+    ),
+  ).toBeLessThanOrEqual(1);
+  await expect(page.getByRole('button', { name: 'New game' })).toBeVisible();
   expect(messages).toEqual([]);
 });
 
