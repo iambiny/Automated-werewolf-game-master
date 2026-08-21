@@ -34,6 +34,7 @@ import type {
 } from '../../application/projections/game-view';
 import type { RoleRegistrationView } from '../../application/projections/role-registration-view';
 import type { RecoveryCheckpoint } from '../../application/recovery/recovery-coordinator';
+import { loadRecoveryWithTimeout } from '../../application/recovery/startup-recovery';
 import { registerServiceWorker } from '../../pwa/register-service-worker';
 import { toMvpPublicGameView } from '../day/mvp-public-game-view';
 import { toMvpPrivateTurnView } from '../night/mvp-private-turn-view';
@@ -150,24 +151,39 @@ export function GameApp() {
     });
     controllerRef.current = controller;
 
-    void controller.loadActiveMatch().then((result) => {
-      if (!active) return;
-      if (result.status === 'READY') {
-        setResumeCheckpoint(result.checkpoint);
-        const persistedRules = parseSetupRules(controller.getConfiguration());
-        setupRulesRef.current = persistedRules;
-        rulesRef.current = toMvpRuleConfig(persistedRules);
-        setRules(persistedRules);
-        setResumeView(controller.getPublicView());
-        setDiscussionTimer(
-          parseDeadlineTimer(controller.getRuntimeState()?.discussionTimer),
+    void (async () => {
+      try {
+        const result = await loadRecoveryWithTimeout(() =>
+          controller.loadActiveMatch(),
         );
-      } else if (result.status === 'INVALID') {
-        setRecoveryIssue(result.message);
+        if (!active) return;
+        if (result.status === 'READY') {
+          setResumeCheckpoint(result.checkpoint);
+          const persistedRules = parseSetupRules(controller.getConfiguration());
+          setupRulesRef.current = persistedRules;
+          rulesRef.current = toMvpRuleConfig(persistedRules);
+          setRules(persistedRules);
+          setResumeView(controller.getPublicView());
+          setDiscussionTimer(
+            parseDeadlineTimer(controller.getRuntimeState()?.discussionTimer),
+          );
+        } else if (result.status === 'INVALID') {
+          setRecoveryIssue(result.message);
+          setScreen('RECOVERY_ERROR');
+        } else if (result.status === 'TIMEOUT') {
+          setRecoveryIssue(result.message);
+          setScreen('HOME');
+        }
+      } catch {
+        if (!active) return;
+        setRecoveryIssue(
+          'The saved match could not be checked. You can safely start a new game.',
+        );
         setScreen('RECOVERY_ERROR');
+      } finally {
+        if (active) setLoading(false);
       }
-      setLoading(false);
-    });
+    })();
 
     return () => {
       active = false;
@@ -940,6 +956,11 @@ export function GameApp() {
         {audioStatus === 'FAILED' && (
           <div className="status-banner" role="status">
             Audio is unavailable. Continue with the on-screen instructions.
+          </div>
+        )}
+        {screen === 'HOME' && recoveryIssue && (
+          <div className="status-banner" role="status">
+            {recoveryIssue}
           </div>
         )}
         {screen === 'HOME' && (

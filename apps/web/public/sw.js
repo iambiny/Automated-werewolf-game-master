@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'werewolf-shell-v1';
+const CACHE_VERSION = 'werewolf-shell-v2';
 const SHELL = [
   '/',
   '/offline.html',
@@ -44,26 +44,30 @@ self.addEventListener('fetch', (event) => {
     new URL(event.request.url).origin !== self.location.origin
   )
     return;
+  const url = new URL(event.request.url);
+  const isStaticAsset = url.pathname.startsWith('/_next/static/');
+
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const network = fetch(event.request)
-        .then((response) => {
-          if (response.ok) {
-            const copy = response.clone();
-            void caches
-              .open(CACHE_VERSION)
-              .then((cache) => cache.put(event.request, copy));
-          }
-          return response;
-        })
-        .catch(
-          () =>
-            cached ??
-            (event.request.mode === 'navigate'
-              ? caches.match('/offline.html')
-              : Response.error()),
-        );
-      return cached ?? network;
-    }),
+    (async () => {
+      const cached = await caches.match(event.request);
+      if (isStaticAsset && cached) return cached;
+
+      try {
+        const response = await fetch(event.request);
+        if (response.ok) {
+          const cache = await caches.open(CACHE_VERSION);
+          await cache.put(event.request, response.clone());
+        }
+        return response;
+      } catch {
+        if (cached) return cached;
+        if (event.request.mode === 'navigate') {
+          return (
+            (await caches.match('/')) ?? (await caches.match('/offline.html'))
+          );
+        }
+        return Response.error();
+      }
+    })(),
   );
 });

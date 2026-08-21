@@ -1,5 +1,10 @@
 import type { NextConfig } from 'next';
 
+const scriptSourcePolicy = [
+  "script-src 'self' 'unsafe-inline'",
+  ...(process.env.NODE_ENV === 'development' ? ["'unsafe-eval'"] : []),
+].join(' ');
+
 const securityHeaders = [
   {
     key: 'Content-Security-Policy',
@@ -14,7 +19,7 @@ const securityHeaders = [
       "manifest-src 'self'",
       "media-src 'self' blob:",
       "object-src 'none'",
-      "script-src 'self' 'unsafe-inline'",
+      scriptSourcePolicy,
       "style-src 'self' 'unsafe-inline'",
       "worker-src 'self' blob:",
     ].join('; '),
