@@ -3,6 +3,6 @@
   "buildCommand": "yarn build",
   "devCommand": "yarn dev",
   "framework": "nextjs",
-  "installCommand": "corepack enable && yarn install --immutable",
+  "installCommand": "corepack yarn install --immutable",
   "outputDirectory": "apps/web/.next"
 }
