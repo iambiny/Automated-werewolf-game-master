@@ -43,7 +43,6 @@ import {
   DEFAULT_PLAYERS,
   DEFAULT_ROLE_COUNTS,
   DEFAULT_SETUP_RULES,
-  ROLE_LABELS,
   parseSetupRules,
   serializeSetupRules,
   toMvpRuleConfig,
@@ -54,6 +53,18 @@ import {
   type RoleCounts,
   type SetupRules,
 } from '../setup/setup-model';
+import {
+  DEFAULT_LOCALE,
+  LOCALE_OPTIONS,
+  getRoleLabels,
+  getActiveLocale,
+  isSupportedLocale,
+  setActiveLocale,
+  translateDeathReveal,
+  translateNightPrompt,
+  translatePhase,
+  type SupportedLocale,
+} from '../multi-language/multi-language';
 
 type Screen =
   | 'HOME'
@@ -116,6 +127,7 @@ export function GameApp() {
   );
   const [narrationVolume, setNarrationVolume] = useState(0.85);
   const [effectsVolume, setEffectsVolume] = useState(0.7);
+  const [locale, setLocale] = useState<SupportedLocale>(DEFAULT_LOCALE);
   const [recoveryIssue, setRecoveryIssue] = useState<string | null>(null);
   const [discussionTimer, setDiscussionTimer] =
     useState<DeadlineTimerSnapshot | null>(null);
@@ -135,6 +147,7 @@ export function GameApp() {
     let active = true;
     audioRef.current = new BrowserAudioService();
     const audioPreferences = loadAudioPreferences();
+    setLocale(loadLocalePreference());
     setNarrationVolume(audioPreferences.narration);
     setEffectsVolume(audioPreferences.effects);
     audioRef.current.setNarrationVolume(audioPreferences.narration);
@@ -197,6 +210,11 @@ export function GameApp() {
   useWakeLock(resumeView !== null && resumeView.phase.type !== 'GAME_OVER');
 
   useEffect(() => {
+    setActiveLocale(locale);
+    document.documentElement.lang = locale;
+  }, [locale]);
+
+  useEffect(() => {
     const audio = audioRef.current;
     const key = audioKeyForScreen(screen);
     if (!audio || !key || audioStatus !== 'READY') return;
@@ -254,6 +272,13 @@ export function GameApp() {
       saveAudioPreferences(narrationVolume, value);
     }
   }
+
+  function changeLocale(value: SupportedLocale) {
+    setLocale(value);
+    saveLocalePreference(value);
+  }
+
+  const roleLabels = getRoleLabels(locale);
 
   function resumeGame() {
     const controller = controllerRef.current;
@@ -969,7 +994,7 @@ export function GameApp() {
             onNewGame={beginNewGame}
             onResume={resumeGame}
             onSettings={() => setScreen('SETTINGS')}
-            resumeLabel={describePhase(resumeView)}
+            resumeLabel={describePhase(resumeView, locale)}
           />
         )}
         {screen === 'RECOVERY_ERROR' && (
@@ -991,8 +1016,10 @@ export function GameApp() {
             audioStatus={audioStatus}
             effectsVolume={effectsVolume}
             narrationVolume={narrationVolume}
+            locale={locale}
             onBack={() => setScreen('HOME')}
             onChangeVolume={changeAudioVolume}
+            onChangeLocale={changeLocale}
             onTestSound={() => void testSound()}
           />
         )}
@@ -1014,6 +1041,7 @@ export function GameApp() {
             onChange={setRoleCounts}
             onContinue={continueFromRoles}
             playerCount={players.length}
+            roleLabels={roleLabels}
           />
         )}
         {screen === 'RULES' && (
@@ -1043,6 +1071,7 @@ export function GameApp() {
             onConfirm={() => void confirmRole()}
             onSelect={setSelectedRole}
             playerName={registration.currentPlayer.displayName}
+            roleLabels={roleLabels}
             selectedRole={selectedRole}
           />
         )}
@@ -1441,6 +1470,7 @@ function RoleSetup({
   onChange,
   onContinue,
   playerCount,
+  roleLabels,
 }: {
   counts: RoleCounts;
   error: string | null;
@@ -1448,6 +1478,7 @@ function RoleSetup({
   onChange: (counts: RoleCounts) => void;
   onContinue: () => void;
   playerCount: number;
+  roleLabels: Record<MvpRoleId, string>;
 }) {
   const total = MVP_ROLE_IDS.reduce((sum, roleId) => sum + counts[roleId], 0);
   return (
@@ -1471,11 +1502,11 @@ function RoleSetup({
           >
             <div>
               <span className="role-glyph">{roleGlyph(roleId)}</span>
-              <strong>{ROLE_LABELS[roleId]}</strong>
+              <strong>{roleLabels[roleId]}</strong>
             </div>
             <div className="stepper">
               <button
-                aria-label={`Remove ${ROLE_LABELS[roleId]}`}
+                aria-label={`Remove ${roleLabels[roleId]}`}
                 disabled={counts[roleId] === 0}
                 onClick={() =>
                   onChange({
@@ -1486,11 +1517,11 @@ function RoleSetup({
               >
                 −
               </button>
-              <output aria-label={`${ROLE_LABELS[roleId]} count`}>
+              <output aria-label={`${roleLabels[roleId]} count`}>
                 {counts[roleId]}
               </output>
               <button
-                aria-label={`Add ${ROLE_LABELS[roleId]}`}
+                aria-label={`Add ${roleLabels[roleId]}`}
                 onClick={() =>
                   onChange({ ...counts, [roleId]: counts[roleId] + 1 })
                 }
@@ -1711,12 +1742,14 @@ function RoleSelection({
   onConfirm,
   onSelect,
   playerName,
+  roleLabels,
   selectedRole,
 }: {
   busy: boolean;
   onConfirm: () => void;
   onSelect: (role: MvpRoleId) => void;
   playerName: string;
+  roleLabels: Record<MvpRoleId, string>;
   selectedRole: MvpRoleId | null;
 }) {
   return (
@@ -1738,7 +1771,7 @@ function RoleSelection({
             onClick={() => onSelect(roleId)}
           >
             <span>{roleGlyph(roleId)}</span>
-            <strong>{ROLE_LABELS[roleId]}</strong>
+            <strong>{roleLabels[roleId]}</strong>
           </button>
         ))}
       </div>
@@ -2622,14 +2655,18 @@ function SettingsInfo({
   audioStatus,
   effectsVolume,
   narrationVolume,
+  locale,
   onBack,
+  onChangeLocale,
   onChangeVolume,
   onTestSound,
 }: {
   audioStatus: 'LOCKED' | 'READY' | 'FAILED';
   effectsVolume: number;
   narrationVolume: number;
+  locale: SupportedLocale;
   onBack: () => void;
+  onChangeLocale: (locale: SupportedLocale) => void;
   onChangeVolume: (channel: 'narration' | 'effects', value: number) => void;
   onTestSound: () => void;
 }) {
@@ -2649,6 +2686,23 @@ function SettingsInfo({
         <span>Private results are never included in the public game view.</span>
       </div>
       <div className="audio-settings">
+        <label>
+          <span>Language</span>
+          <select
+            aria-label="Language"
+            onChange={(event) => {
+              const nextLocale = event.target.value;
+              if (isSupportedLocale(nextLocale)) onChangeLocale(nextLocale);
+            }}
+            value={locale}
+          >
+            {LOCALE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
         <label>
           <span>Narration volume</span>
           <input
@@ -2831,14 +2885,16 @@ function AmbientBackdrop() {
   );
 }
 
-function describePhase(view: PublicGameView | null): string {
+function describePhase(
+  view: PublicGameView | null,
+  locale: SupportedLocale,
+): string {
   if (!view) return '';
-  if (view.phase.type === 'ROLE_REGISTRATION')
-    return 'Secret role registration';
-  if (view.phase.type === 'PRE_GAME_VALIDATION')
-    return 'Ready to begin Night 1';
-  if (view.phase.type === 'NIGHT') return `Night ${view.phase.nightNumber}`;
-  return view.phase.type.replaceAll('_', ' ').toLocaleLowerCase();
+  return translatePhase(
+    locale,
+    view.phase.type,
+    view.phase.type === 'NIGHT' ? view.phase.nightNumber : undefined,
+  );
 }
 
 function roleGlyph(roleId: MvpRoleId): string {
@@ -2856,7 +2912,10 @@ function roleGlyph(roleId: MvpRoleId): string {
 }
 
 function nightRoleLabel(roleId: string): string {
-  return ROLE_LABELS[roleId as MvpRoleId] ?? roleId.replaceAll('_', ' ');
+  return (
+    getRoleLabels(getActiveLocale())[roleId as MvpRoleId] ??
+    roleId.replaceAll('_', ' ')
+  );
 }
 
 function nightGlyph(roleId: string): string {
@@ -2866,30 +2925,15 @@ function nightGlyph(roleId: string): string {
 }
 
 function nightPrompt(roleId: string): string {
-  switch (roleId) {
-    case 'SEER':
-      return 'Whose truth will you reveal?';
-    case 'GUARD':
-      return 'Who will you protect tonight?';
-    case 'WEREWOLF':
-      return 'Choose the village target.';
-    case 'DEMON_WOLF':
-      return 'Will you spend the curse?';
-    case 'WITCH':
-      return 'Will you use a potion?';
-    default:
-      return 'Complete your night action.';
-  }
+  return translateNightPrompt(getActiveLocale(), roleId);
 }
 
 function deathRevealText(death: PublicDeathView): string {
   if (death.revealedRoleId) return nightRoleLabel(death.revealedRoleId);
   if (death.revealedTeamId) {
-    return death.revealedTeamId === 'WEREWOLF'
-      ? 'Werewolf aligned'
-      : 'Village aligned';
+    return translateDeathReveal(getActiveLocale(), death.revealedTeamId);
   }
-  return 'Role remains hidden';
+  return translateDeathReveal(getActiveLocale());
 }
 
 function formatDuration(totalSeconds: number): string {
@@ -3033,6 +3077,24 @@ function audioKeyForScreen(screen: Screen): AudioKey | null {
 }
 
 const AUDIO_PREFERENCES_KEY = 'werewolf-audio-preferences-v1';
+const LOCALE_PREFERENCES_KEY = 'werewolf-locale-v1';
+
+function loadLocalePreference(): SupportedLocale {
+  try {
+    const locale = localStorage.getItem(LOCALE_PREFERENCES_KEY);
+    return isSupportedLocale(locale) ? locale : DEFAULT_LOCALE;
+  } catch {
+    return DEFAULT_LOCALE;
+  }
+}
+
+function saveLocalePreference(locale: SupportedLocale): void {
+  try {
+    localStorage.setItem(LOCALE_PREFERENCES_KEY, locale);
+  } catch {
+    // Language preferences are optional.
+  }
+}
 
 function loadAudioPreferences(): { effects: number; narration: number } {
   try {

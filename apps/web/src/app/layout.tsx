@@ -4,6 +4,11 @@ import type { ReactNode } from 'react';
 import './styles.css';
 
 export const metadata: Metadata = {
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Werewolf GM',
+  },
   description: 'A single-device game master for physical-card Werewolf.',
   manifest: '/manifest.webmanifest',
   title: 'Automated Werewolf Game Master',
