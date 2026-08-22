@@ -979,6 +979,11 @@ type NarrationPack = {
 };
 ```
 
+The web client supports English (`en`) and Vietnamese (`vi`) presentation
+locales. Locale selection is a device preference, not match state: changing it
+must never alter rules, role IDs, or persisted game outcomes. Vietnamese copy
+uses the same stable role IDs and narration keys as English.
+
 ---
 
 # 18. Timer Engine Requirements

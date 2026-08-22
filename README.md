@@ -25,6 +25,12 @@ yarn build
 
 The framework-independent domain engine lives in `packages/game-engine`.
 
+## Languages
+
+The web app supports English and Vietnamese. Choose **Tiếng Việt** in Settings;
+the preference is saved on the device and does not change an active match's
+rules or saved state.
+
 ## Deployment
 
 The repository includes Vercel configuration, production security/cache

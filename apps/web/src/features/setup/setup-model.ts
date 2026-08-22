@@ -2,6 +2,8 @@ import type { JsonObject, RoleCompositionEntry } from '@werewolf/game-engine';
 import type { MvpRoleId, MvpRuleConfig } from '@werewolf/role-catalog';
 import { MVP_ROLE_IDS } from '@werewolf/role-catalog';
 
+import { getRoleLabels } from '../multi-language/multi-language';
+
 export interface PlayerDraft {
   id: string;
   name: string;
@@ -22,16 +24,7 @@ export interface SetupRules {
   witchSeesVictim: boolean;
 }
 
-export const ROLE_LABELS: Record<MvpRoleId, string> = {
-  DEMON_WOLF: 'Demon Wolf',
-  FOOL: 'Fool',
-  GUARD: 'Guard',
-  HUNTER: 'Hunter',
-  SEER: 'Seer',
-  VILLAGER: 'Villager',
-  WEREWOLF: 'Werewolf',
-  WITCH: 'Witch',
-};
+export const ROLE_LABELS = getRoleLabels('en');
 
 export const DEFAULT_PLAYERS: PlayerDraft[] = Array.from(
   { length: 8 },
