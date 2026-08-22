@@ -58,6 +58,7 @@ import {
   LOCALE_OPTIONS,
   getRoleLabels,
   getActiveLocale,
+  installPageLocalization,
   isSupportedLocale,
   setActiveLocale,
   translateDeathReveal,
@@ -212,6 +213,7 @@ export function GameApp() {
   useEffect(() => {
     setActiveLocale(locale);
     document.documentElement.lang = locale;
+    return installPageLocalization(locale);
   }, [locale]);
 
   useEffect(() => {
