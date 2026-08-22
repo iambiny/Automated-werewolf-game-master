@@ -10,9 +10,37 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { GameApp } from './game-app';
 
-afterEach(() => cleanup());
+afterEach(() => {
+  cleanup();
+  localStorage.clear();
+});
 
 describe('GameApp setup journey', () => {
+  it('localizes settings and home before continuing navigation', async () => {
+    const user = userEvent.setup();
+    render(<GameApp />);
+
+    await user.click(await screen.findByRole('button', { name: 'Settings' }));
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'Language' }),
+      'vi',
+    );
+    expect(
+      screen.getByRole('heading', { name: 'Luật chơi đi cùng ván đấu' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Luật riêng và đồng hồ được chọn khi tạo ván mới/),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '← Trang chủ' }));
+    expect(
+      screen.getByRole('button', { name: 'Ván chơi mới' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('Được thiết kế cho một điện thoại chuyền quanh bàn'),
+    ).toBeInTheDocument();
+  });
+
   it('takes the default eight-player setup into private registration', async () => {
     const user = userEvent.setup();
     render(<GameApp />);

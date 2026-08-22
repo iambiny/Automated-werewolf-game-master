@@ -75,7 +75,6 @@ const pageCopy: Record<string, string> = {
   'Effects volume': 'Âm lượng hiệu ứng',
   'End discussion and vote': 'Kết thúc thảo luận và bỏ phiếu',
   'Everyone is ready': 'Mọi người đã sẵn sàng',
-  'Everyone, close your eyes.': 'Mọi người hãy nhắm mắt.',
   'Execution result': 'Kết quả xử tử',
   'Everyone else, look away. Your card stays private.':
     'Mọi người khác hãy nhìn đi chỗ khác. Lá bài của bạn được giữ bí mật.',
@@ -134,6 +133,137 @@ const pageCopy: Record<string, string> = {
   'Who is at the table?': 'Ai đang ngồi quanh bàn?',
   'Your target': 'Mục tiêu của bạn',
   'Your role': 'Vai trò của bạn',
+  '← Back': '← Quay lại',
+  '← Home': '← Trang chủ',
+  'Designed for a single phone passed around the table':
+    'Được thiết kế cho một điện thoại chuyền quanh bàn',
+  English: 'Tiếng Anh',
+  'New game': 'Ván chơi mới',
+  'Replace the saved game?': 'Thay thế ván chơi đã lưu?',
+  'Continue with a new game': 'Tiếp tục với ván chơi mới',
+  'Keep current match': 'Giữ ván chơi hiện tại',
+  'House rules and timers are selected during New Game and saved with that match, so recovery uses the same choices.':
+    'Luật riêng và đồng hồ được chọn khi tạo ván mới và được lưu cùng ván đấu, nên khi khôi phục vẫn dùng đúng các lựa chọn đó.',
+  'Private results are never included in the public game view.':
+    'Kết quả bí mật không bao giờ xuất hiện trong màn hình công khai.',
+  'Match these counts to the cards players will draw.':
+    'Điều chỉnh số lượng cho khớp với những lá bài người chơi sẽ rút.',
+  'Review game rules': 'Xem lại luật chơi',
+  'Only the choices that matter during this game.':
+    'Chỉ những lựa chọn có ảnh hưởng đến ván chơi này.',
+  'Seer reveals': 'Tiên Tri tiết lộ',
+  'Team only': 'Chỉ phe',
+  'Exact role': 'Vai trò chính xác',
+  Guard: 'Bảo Vệ',
+  'May protect themself': 'Có thể tự bảo vệ',
+  "May repeat last night's target": 'Có thể bảo vệ lại mục tiêu của đêm trước',
+  Witch: 'Phù Thủy',
+  'Sees the Werewolf target': 'Biết mục tiêu của Ma Sói',
+  'May heal themself': 'Có thể tự cứu mình',
+  'May use both potions in one night':
+    'Có thể dùng cả hai bình thuốc trong một đêm',
+  'Fool & Mayor': 'Kẻ Ngốc và Trưởng Làng',
+  'Fool survives first execution and loses vote':
+    'Kẻ Ngốc sống sót lần xử tử đầu tiên và mất quyền bỏ phiếu',
+  'Mayor office after death': 'Chức Trưởng Làng sau khi chết',
+  Vacant: 'Bỏ trống',
+  'Death reveal': 'Công bố khi chết',
+  'No reveal': 'Không công bố',
+  Timers: 'Đồng hồ',
+  'Private role turn': 'Lượt vai trò bí mật',
+  sec: 'giây',
+  'Setup ·': 'Thiết lập ·',
+  of: 'trên',
+  Player: 'Người chơi',
+  name: 'tên',
+  'Continue with': 'Tiếp tục với',
+  players: 'người chơi',
+  'Hold to reveal roles': 'Giữ để xem vai trò',
+  For: 'Dành cho',
+  'Saving privately…': 'Đang lưu bí mật…',
+  'Validate the deck': 'Xác thực bộ bài',
+  'Pass to next player': 'Chuyển cho người chơi tiếp theo',
+  'The roles do not match': 'Các vai trò không khớp',
+  'Role registration does not match the selected deck. No player or role is identified.':
+    'Vai trò đã đăng ký không khớp với bộ bài đã chọn. Không người chơi hay vai trò nào bị tiết lộ.',
+  'Re-register every role': 'Đăng ký lại tất cả vai trò',
+  'Pre-game check complete': 'Kiểm tra trước trận hoàn tất',
+  'Turn on Do Not Disturb': 'Bật chế độ Không làm phiền',
+  'Raise the volume for narration': 'Tăng âm lượng lời dẫn',
+  'Everyone, close your eyes.': 'Mọi người hãy nhắm mắt.',
+  'Place the phone with the moderator. Keep your eyes closed until dawn.':
+    'Đặt điện thoại cạnh quản trò. Hãy nhắm mắt cho đến bình minh.',
+  'Starting the night…': 'Đang bắt đầu đêm…',
+  'Only this role should look at the screen.':
+    'Chỉ người có vai trò này được nhìn màn hình.',
+  'Hold the night still.': 'Hãy giữ yên màn đêm.',
+  'Complete this private pause, then close your eyes when prompted.':
+    'Hoàn tất khoảng dừng bí mật này, rồi nhắm mắt khi được nhắc.',
+  'Werewolf target': 'Mục tiêu của Ma Sói',
+  'The curse cannot choose a different player.':
+    'Lời nguyền không thể chọn người chơi khác.',
+  'Skip attack': 'Bỏ qua tấn công',
+  'Use curse': 'Dùng lời nguyền',
+  'Skip curse': 'Bỏ qua lời nguyền',
+  'Use no potion': 'Không dùng bình thuốc',
+  'Finish Witch turn': 'Kết thúc lượt Phù Thủy',
+  'Healing potion': 'Bình thuốc cứu',
+  'Poison potion': 'Bình thuốc độc',
+  'Action hidden': 'Hành động đã được ẩn',
+  'The screen is safe to return to the moderator.':
+    'Có thể an toàn trả màn hình lại cho quản trò.',
+  'Role is asleep': 'Vai trò đã ngủ',
+  'Night is resolving…': 'Đang xử lý kết quả đêm…',
+  'No private outcome will appear on this screen.':
+    'Không kết quả bí mật nào xuất hiện trên màn hình này.',
+  'Night actions remain secret. Only the final public outcome follows.':
+    'Các hành động đêm vẫn được giữ bí mật. Chỉ kết quả công khai cuối cùng được thông báo.',
+  'Preparing announcement…': 'Đang chuẩn bị thông báo…',
+  'Reveal the morning': 'Công bố buổi sáng',
+  'No one died. The reason remains hidden.':
+    'Không ai chết. Nguyên nhân vẫn được giữ bí mật.',
+  'No targets, protections, or hidden action sources are revealed.':
+    'Không tiết lộ mục tiêu, sự bảo vệ hay nguồn hành động bí mật.',
+  'Mandatory death trigger': 'Hiệu ứng khi chết bắt buộc',
+  'The winner will not be checked until every Hunter shot resolves.':
+    'Chưa xác định bên thắng cho đến khi mọi phát bắn của Thợ Săn được xử lý.',
+  'Open vote · Moderator records': 'Bỏ phiếu công khai · Quản trò ghi nhận',
+  'Recording ballot for': 'Đang ghi phiếu của',
+  'Mayor ballot counts ×2': 'Phiếu của Trưởng Làng được tính ×2',
+  'Public office elected': 'Đã bầu chức vụ công khai',
+  "The Mayor's execution ballot counts ×2 while they hold office.":
+    'Phiếu xử tử của Trưởng Làng được tính ×2 khi còn giữ chức.',
+  'The village has the floor.': 'Ngôi làng đang thảo luận.',
+  'Discussion is paused.': 'Thảo luận đang tạm dừng.',
+  '+30 seconds': '+30 giây',
+  'The vote is settled.': 'Cuộc bỏ phiếu đã kết thúc.',
+  'The Village wins.': 'Phe Dân Làng chiến thắng.',
+  'The Werewolves win.': 'Phe Ma Sói chiến thắng.',
+  'Preparing Night 1…': 'Đang chuẩn bị Đêm 1…',
+  Night: 'Đêm',
+  'Open private controls': 'Mở điều khiển bí mật',
+  ', open your eyes.': ', hãy mở mắt.',
+  ', close your eyes.': ', hãy nhắm mắt.',
+  'Complete turn': 'Hoàn tất lượt',
+  'No attack': 'Không tấn công',
+  Confirm: 'Xác nhận',
+  target: 'mục tiêu',
+  'Save the curse': 'Giữ lại lời nguyền',
+  left: 'còn lại',
+  'Heal the Werewolf victim without revealing their name.':
+    'Cứu nạn nhân của Ma Sói mà không tiết lộ tên.',
+  'There is no attack target to heal.': 'Không có mục tiêu bị tấn công để cứu.',
+  'Use healing potion': 'Dùng bình thuốc cứu',
+  'Confirm poison': 'Xác nhận dùng độc',
+  'Werewolf aligned': 'Thuộc phe Ma Sói',
+  'Village aligned': 'Thuộc phe Dân Làng',
+  Unknown: 'Không rõ',
+  'This result disappears as soon as you continue.':
+    'Kết quả này sẽ biến mất ngay khi bạn tiếp tục.',
+  'Hide result and sleep': 'Ẩn kết quả và đi ngủ',
+  'Saving…': 'Đang lưu…',
+  'Retry safely': 'Thử lại an toàn',
+  s: ' giây',
 };
 
 const pageCopyReverse = Object.fromEntries(
@@ -143,16 +273,24 @@ const pageCopyReverse = Object.fromEntries(
   ]),
 );
 
+export function translateInterfaceText(
+  locale: SupportedLocale,
+  value: string,
+): string {
+  return locale === 'vi'
+    ? (pageCopy[value] ?? translatePattern(value, locale))
+    : (pageCopyReverse[value] ?? translatePattern(value, locale));
+}
+
 export function installPageLocalization(locale: SupportedLocale): () => void {
   if (typeof document === 'undefined') return () => undefined;
-  const translate = (value: string) =>
-    locale === 'vi'
-      ? (pageCopy[value] ?? translatePattern(value, locale))
-      : (pageCopyReverse[value] ?? translatePattern(value, locale));
+  const translate = (value: string) => translateInterfaceText(locale, value);
   const localizeElement = (element: Element) => {
     for (const attribute of ['aria-label', 'placeholder', 'title']) {
       const value = element.getAttribute(attribute);
-      if (value) element.setAttribute(attribute, translate(value));
+      if (!value) continue;
+      const translated = translate(value);
+      if (translated !== value) element.setAttribute(attribute, translated);
     }
   };
   const localizeText = (node: Text) => {
@@ -203,14 +341,36 @@ function translatePattern(value: string, locale: SupportedLocale): string {
       .replace(/^Morning (\d+)$/, 'Buổi sáng $1')
       .replace(/^Seat (\d+)$/, 'Ghế $1')
       .replace(/^For (.+)$/, 'Dành cho $1')
-      .replace(/^Continue with (\d+) players$/, 'Tiếp tục với $1 người chơi');
+      .replace(/^Continue with (\d+) players$/, 'Tiếp tục với $1 người chơi')
+      .replace(/^Setup · (.+)$/, 'Thiết lập · $1')
+      .replace(/^(\d+) of (\d+)$/, '$1 trên $2')
+      .replace(/^Player (\d+) name$/, 'Tên người chơi $1')
+      .replace(/^Move (.+) up$/, 'Di chuyển $1 lên')
+      .replace(/^Move (.+) down$/, 'Di chuyển $1 xuống')
+      .replace(/^Remove (.+)$/, 'Xóa $1')
+      .replace(/^Add (.+)$/, 'Thêm $1')
+      .replace(/^(.+) count$/, 'Số lượng $1')
+      .replace(/^(.+) sec$/, '$1 giây')
+      .replace(/^(\d+) left$/, 'Còn $1')
+      .replace(/^(.+) was attacked\.$/, '$1 đã bị tấn công.');
   }
   return value
     .replace(/^Đêm (\d+)$/, 'Night $1')
     .replace(/^Buổi sáng (\d+)$/, 'Morning $1')
     .replace(/^Ghế (\d+)$/, 'Seat $1')
     .replace(/^Dành cho (.+)$/, 'For $1')
-    .replace(/^Tiếp tục với (\d+) người chơi$/, 'Continue with $1 players');
+    .replace(/^Tiếp tục với (\d+) người chơi$/, 'Continue with $1 players')
+    .replace(/^Thiết lập · (.+)$/, 'Setup · $1')
+    .replace(/^(\d+) trên (\d+)$/, '$1 of $2')
+    .replace(/^Tên người chơi (\d+)$/, 'Player $1 name')
+    .replace(/^Di chuyển (.+) lên$/, 'Move $1 up')
+    .replace(/^Di chuyển (.+) xuống$/, 'Move $1 down')
+    .replace(/^Xóa (.+)$/, 'Remove $1')
+    .replace(/^Thêm (.+)$/, 'Add $1')
+    .replace(/^Số lượng (.+)$/, '$1 count')
+    .replace(/^(.+) giây$/, '$1 sec')
+    .replace(/^Còn (\d+)$/, '$1 left')
+    .replace(/^(.+) đã bị tấn công\.$/, '$1 was attacked.');
 }
 
 export function isSupportedLocale(value: unknown): value is SupportedLocale {

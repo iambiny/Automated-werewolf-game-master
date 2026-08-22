@@ -214,7 +214,7 @@ export function GameApp() {
     setActiveLocale(locale);
     document.documentElement.lang = locale;
     return installPageLocalization(locale);
-  }, [locale]);
+  }, [locale, screen]);
 
   useEffect(() => {
     const audio = audioRef.current;
