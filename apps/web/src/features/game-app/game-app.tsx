@@ -1651,7 +1651,7 @@ function RoleSetup({
 function RulesSetup({
   busy,
   error,
-  locale,
+  // locale,
   onBack,
   onChange,
   onContinue,
