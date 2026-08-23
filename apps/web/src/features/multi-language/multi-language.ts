@@ -264,6 +264,32 @@ const pageCopy: Record<string, string> = {
   'Saving…': 'Đang lưu…',
   'Retry safely': 'Thử lại an toàn',
   s: ' giây',
+  'The previous choice is no longer visible. Turn the screen away before passing it on.':
+    'Lựa chọn trước không còn hiển thị. Hãy xoay màn hình đi trước khi chuyển cho người tiếp theo.',
+  'players and their physical deck are registered. Secrets are saved on this device.':
+    'người chơi và bộ bài vật lý của họ đã được đăng ký. Bí mật được lưu trên thiết bị này.',
+  Morning: 'Buổi sáng',
+  Seat: 'Ghế',
+  'The village is unchanged.': 'Ngôi làng không có thay đổi.',
+  'The night has taken its toll.': 'Đêm qua đã để lại hậu quả.',
+  "The Hunter's shot lands.": 'Phát bắn của Thợ Săn đã trúng đích.',
+  'Continue the morning': 'Tiếp tục buổi sáng',
+  'Elect the first Mayor': 'Bầu Trưởng Làng đầu tiên',
+  Round: 'Vòng',
+  ballots: 'phiếu bầu',
+  'Record vote for': 'Ghi phiếu cho',
+  'The engine will apply vote eligibility, Mayor weight, and tie rules.':
+    'Hệ thống sẽ áp dụng điều kiện bỏ phiếu, trọng số của Trưởng Làng và luật hòa phiếu.',
+  'Resolve the vote': 'Xử lý kết quả bỏ phiếu',
+  'Begin discussion': 'Bắt đầu thảo luận',
+  'Village execution vote': 'Bỏ phiếu xử tử của làng',
+  'The vote is tied. Only the tied players remain eligible.':
+    'Phiếu bầu hòa. Chỉ những người chơi hòa phiếu còn đủ điều kiện.',
+  'The vote is tied. Only the tied players remain eligible for the revote.':
+    'Phiếu bầu hòa. Chỉ những người chơi hòa phiếu còn đủ điều kiện cho vòng bỏ phiếu lại.',
+  'Werewolf-aligned players reached parity with the opposition.':
+    'Phe Ma Sói đã đạt thế cân bằng với phe đối lập.',
+  'Test sound again': 'Thử âm thanh lại',
 };
 
 const pageCopyReverse = Object.fromEntries(

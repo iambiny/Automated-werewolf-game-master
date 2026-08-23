@@ -47,6 +47,25 @@ describe('multi-language', () => {
     );
   });
 
+  it('translates public-flow, voting, and winner messages', () => {
+    expect(translateInterfaceText('vi', 'Morning')).toBe('Buổi sáng');
+    expect(translateInterfaceText('vi', 'Seat')).toBe('Ghế');
+    expect(translateInterfaceText('vi', 'Round')).toBe('Vòng');
+    expect(translateInterfaceText('vi', 'ballots')).toBe('phiếu bầu');
+    expect(translateInterfaceText('vi', 'Elect the first Mayor')).toBe(
+      'Bầu Trưởng Làng đầu tiên',
+    );
+    expect(translateInterfaceText('vi', 'Resolve the vote')).toBe(
+      'Xử lý kết quả bỏ phiếu',
+    );
+    expect(
+      translateInterfaceText(
+        'vi',
+        'Werewolf-aligned players reached parity with the opposition.',
+      ),
+    ).toBe('Phe Ma Sói đã đạt thế cân bằng với phe đối lập.');
+  });
+
   it('accepts only supported locale codes', () => {
     expect(isSupportedLocale('vi')).toBe(true);
     expect(isSupportedLocale('fr')).toBe(false);
