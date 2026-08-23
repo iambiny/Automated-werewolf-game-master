@@ -1,4 +1,8 @@
-import type { MatchState, PlayerId } from '@werewolf/game-engine';
+import {
+  isPlayerCursed,
+  type MatchState,
+  type PlayerId,
+} from '@werewolf/game-engine';
 import type { MvpRuleConfig } from '@werewolf/role-catalog';
 
 import {
@@ -12,17 +16,46 @@ export function toMvpPrivateTurnView(
   rules: MvpRuleConfig,
 ): PrivateTurnView | null {
   const base = toPrivateTurnView(state);
-  if (!base || base.mode === 'DECOY') return base;
+  if (!base) return base;
+
+  const cursedPlayers = currentRoleHolderIds(state, base.roleId)
+    .filter((playerId) => isPlayerCursed(state, playerId))
+    .map((playerId) => state.players[playerId])
+    .filter(
+      (player): player is NonNullable<typeof player> => player !== undefined,
+    );
+  const cursedContext =
+    cursedPlayers.length > 0
+      ? { cursedPlayers: summarize(cursedPlayers) }
+      : undefined;
+  if (base.mode === 'DECOY') {
+    return {
+      ...base,
+      ...(cursedContext ? { privateContext: cursedContext } : {}),
+    };
+  }
 
   const livingPlayers = Object.values(state.players)
     .filter((player) => player.lifeState === 'ALIVE')
     .sort((left, right) => left.seatIndex - right.seatIndex);
   const actorIds = livingRoleHolderIds(state, base.roleId);
+  if (base.roleId !== 'WEREWOLF' && actorIds.length === 0) {
+    return {
+      ...base,
+      instruction: `Complete the private ${base.roleId} handoff.`,
+      mode: 'DECOY',
+      ...(cursedContext ? { privateContext: cursedContext } : {}),
+    };
+  }
+  const withCurseNotice: PrivateTurnView = {
+    ...base,
+    ...(cursedContext ? { privateContext: cursedContext } : {}),
+  };
 
   switch (base.roleId) {
     case 'SEER':
       return {
-        ...base,
+        ...withCurseNotice,
         validTargets: summarize(
           livingPlayers.filter(
             (player) =>
@@ -40,7 +73,7 @@ export function toMvpPrivateTurnView(
           .filter((value): value is PlayerId => typeof value === 'string'),
       );
       return {
-        ...base,
+        ...withCurseNotice,
         validTargets: summarize(
           livingPlayers.filter(
             (player) =>
@@ -54,7 +87,7 @@ export function toMvpPrivateTurnView(
     }
     case 'WEREWOLF':
       return {
-        ...base,
+        ...withCurseNotice,
         validTargets: summarize(
           livingPlayers.filter(
             (player) =>
@@ -66,8 +99,9 @@ export function toMvpPrivateTurnView(
       const victimId = state.nightContext?.werewolfAttackTargetId;
       const victim = victimId ? state.players[victimId] : undefined;
       return {
-        ...base,
+        ...withCurseNotice,
         privateContext: {
+          ...cursedContext,
           ...(victim ? { werewolfVictim: summarizeOne(victim) } : {}),
         },
       };
@@ -76,8 +110,9 @@ export function toMvpPrivateTurnView(
       const victimId = state.nightContext?.werewolfAttackTargetId;
       const victim = victimId ? state.players[victimId] : undefined;
       return {
-        ...base,
+        ...withCurseNotice,
         privateContext: {
+          ...cursedContext,
           canHealWerewolfVictim: victim !== undefined,
           healPotionRemaining: potionCount(
             state,
@@ -103,8 +138,18 @@ export function toMvpPrivateTurnView(
       };
     }
     default:
-      return base;
+      return withCurseNotice;
   }
+}
+
+function currentRoleHolderIds(state: MatchState, roleId: string): PlayerId[] {
+  return Object.entries(state.roleAssignments)
+    .filter(
+      ([playerId, assignment]) =>
+        assignment.currentRoleId === roleId &&
+        state.players[playerId]?.lifeState === 'ALIVE',
+    )
+    .map(([playerId]) => playerId);
 }
 
 function livingRoleHolderIds(state: MatchState, roleId: string): PlayerId[] {
@@ -121,7 +166,8 @@ function livingRoleHolderIds(state: MatchState, roleId: string): PlayerId[] {
     .filter(
       ([playerId, assignment]) =>
         assignment.currentRoleId === roleId &&
-        state.players[playerId]?.lifeState === 'ALIVE',
+        state.players[playerId]?.lifeState === 'ALIVE' &&
+        !isPlayerCursed(state, playerId),
     )
     .map(([playerId]) => playerId);
 }

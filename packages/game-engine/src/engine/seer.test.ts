@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   createNightTestState,
+  markTestPlayerCursed,
   markTestPlayerDead,
 } from '../testing/night-state';
 import { resolveSeerInspection, submitSeerInspection } from './seer';
@@ -13,6 +14,15 @@ describe('Seer mechanics', () => {
     expect(resolveSeerInspection(state, 'demon-wolf', 'TEAM')).toEqual({
       mode: 'TEAM',
       teamId: 'WEREWOLF',
+    });
+  });
+
+  it('returns the Fool as an unclear third alignment in TEAM mode', () => {
+    const state = createNightTestState('SEER');
+
+    expect(resolveSeerInspection(state, 'fool', 'TEAM')).toEqual({
+      mode: 'TEAM',
+      teamId: 'FOOL',
     });
   });
 
@@ -102,6 +112,21 @@ describe('Seer mechanics', () => {
 
     expect(result).toMatchObject({
       error: { code: 'ACTION_NOT_AVAILABLE' },
+      ok: false,
+    });
+  });
+
+  it('does not accept an action from a cursed Seer', () => {
+    const state = markTestPlayerCursed(createNightTestState('SEER'), 'seer');
+
+    const result = submitSeerInspection(
+      state,
+      { actionId: 'cursed-seer-action', targetPlayerId: 'wolf' },
+      { allowSelfInspect: false, investigationMode: 'TEAM' },
+    );
+
+    expect(result).toMatchObject({
+      error: { code: 'ROLE_NOT_ELIGIBLE' },
       ok: false,
     });
   });

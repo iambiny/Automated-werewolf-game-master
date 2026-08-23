@@ -28,19 +28,37 @@ class FakeAudioContext {
   resume = vi.fn(async () => undefined);
 }
 
+class FakeAudio extends EventTarget {
+  static instances: FakeAudio[] = [];
+  currentTime = 0;
+  loop = false;
+  pause = vi.fn();
+  play = vi.fn(async () => {
+    queueMicrotask(() => this.dispatchEvent(new Event('ended')));
+  });
+  volume = 1;
+
+  constructor(public src: string) {
+    super();
+    FakeAudio.instances.push(this);
+  }
+}
+
 describe('BrowserAudioService', () => {
   beforeEach(() => {
     FakeAudioContext.oscillators = [];
+    FakeAudio.instances = [];
     vi.stubGlobal('AudioContext', FakeAudioContext);
+    vi.stubGlobal('Audio', FakeAudio);
   });
 
-  it('unlocks once and completes bundled offline cues', async () => {
+  it('keeps a short synthesized beep for interface feedback', async () => {
     const service = new BrowserAudioService();
 
     await expect(service.unlock()).resolves.toBeUndefined();
-    await expect(service.play('DAWN')).resolves.toBeUndefined();
+    await expect(service.playInterfaceBeep()).resolves.toBeUndefined();
 
-    expect(FakeAudioContext.oscillators).toHaveLength(6);
+    expect(FakeAudioContext.oscillators).toHaveLength(2);
     expect(
       FakeAudioContext.oscillators.every(
         (item) => item.start.mock.calls.length === 1,
@@ -48,9 +66,63 @@ describe('BrowserAudioService', () => {
     ).toBe(true);
   });
 
-  it('falls back cleanly before browser audio is unlocked', async () => {
-    await expect(new BrowserAudioService().play('DAWN')).rejects.toThrow(
-      'Audio has not been unlocked',
+  it('plays role narration and effects from the local audio pack', async () => {
+    const service = new BrowserAudioService();
+    await service.unlock();
+
+    await service.play({
+      kind: 'ROLE_NARRATION',
+      locale: 'vi',
+      roleId: 'SEER',
+      stage: 'ACTION',
+    });
+    await service.play({ key: 'SEER_VISION', kind: 'EFFECT' });
+
+    expect(FakeAudio.instances.map((item) => item.src)).toEqual([
+      '/audio/voice/vi/seer-action.wav',
+      '/audio/effects/seer_vision.wav',
+    ]);
+  });
+
+  it('uses distinct narration for mayor and execution voting', async () => {
+    const service = new BrowserAudioService();
+    await service.unlock();
+
+    await service.play({
+      key: 'MAYOR_VOTE_START',
+      kind: 'NARRATION',
+      locale: 'vi',
+    });
+    await service.play({ key: 'VOTE_START', kind: 'NARRATION', locale: 'vi' });
+
+    expect(FakeAudio.instances.map((item) => item.src)).toEqual([
+      '/audio/voice/vi/mayor_vote.wav',
+      '/audio/voice/vi/vote.wav',
+    ]);
+  });
+
+  it('uses the documented MP3 format for English phase narration', async () => {
+    const service = new BrowserAudioService();
+    await service.unlock();
+
+    await service.play({
+      key: 'HUNTER_ACTION',
+      kind: 'NARRATION',
+      locale: 'en',
+    });
+
+    expect(FakeAudio.instances.at(-1)?.src).toBe(
+      '/audio/voice/en/hunter_action.mp3',
     );
+  });
+
+  it('falls back cleanly before browser audio is unlocked', async () => {
+    await expect(
+      new BrowserAudioService().play({
+        key: 'DAWN',
+        kind: 'NARRATION',
+        locale: 'en',
+      }),
+    ).rejects.toThrow('Audio has not been unlocked');
   });
 });

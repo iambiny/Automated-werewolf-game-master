@@ -8,6 +8,8 @@ export function evaluateWinner(
   state: MatchState,
   rules: WinRules,
 ): WinnerResult | null {
+  if (state.winner) return state.winner;
+
   if (state.pendingTriggers.length > 0 || !isStableWinCheckpoint(state)) {
     return null;
   }
@@ -18,7 +20,9 @@ export function evaluateWinner(
   const livingWerewolves = livingAssignments.filter(
     (assignment) => assignment.teamId === 'WEREWOLF',
   ).length;
-  const livingOthers = livingAssignments.length - livingWerewolves;
+  const livingVillagers = livingAssignments.filter(
+    (assignment) => assignment.teamId === 'VILLAGE',
+  ).length;
 
   if (livingWerewolves === 0) {
     return {
@@ -29,7 +33,7 @@ export function evaluateWinner(
 
   if (
     rules.werewolfCondition === 'PARITY' &&
-    livingWerewolves >= livingOthers
+    livingWerewolves >= livingVillagers
   ) {
     return {
       reason: 'Werewolf-aligned players reached parity with the opposition.',
@@ -44,6 +48,8 @@ export function declareWinner(
   state: MatchState,
   rules: WinRules,
 ): EngineResult {
+  if (state.winner) return { events: [], ok: true, state };
+
   const winner = evaluateWinner(state, rules);
   if (!winner) {
     return {

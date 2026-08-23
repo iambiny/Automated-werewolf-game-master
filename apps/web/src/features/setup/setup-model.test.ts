@@ -43,4 +43,15 @@ describe('setup model', () => {
       DEFAULT_SETUP_RULES,
     );
   });
+
+  it('migrates the previous Fool toggle and accepts the win option', () => {
+    expect(
+      parseSetupRules({ foolSurvivesFirstExecution: false })
+        .foolExecutionBehavior,
+    ).toBe('DIES_NORMALLY');
+    expect(
+      parseSetupRules({ foolExecutionBehavior: 'WINS_WHEN_EXECUTED' })
+        .foolExecutionBehavior,
+    ).toBe('WINS_WHEN_EXECUTED');
+  });
 });

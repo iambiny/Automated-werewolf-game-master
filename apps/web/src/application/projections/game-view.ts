@@ -61,6 +61,7 @@ export interface PrivateTurnView {
   mode: 'ACTIVE' | 'DECOY';
   privateContext?: {
     canHealWerewolfVictim?: boolean;
+    cursedPlayers?: PlayerSummary[];
     healPotionRemaining?: number;
     poisonPotionRemaining?: number;
     werewolfVictim?: PlayerSummary;

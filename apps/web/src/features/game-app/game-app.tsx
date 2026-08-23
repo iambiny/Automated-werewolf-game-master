@@ -12,7 +12,11 @@ import { MVP_ROLE_IDS, type MvpRoleId } from '@werewolf/role-catalog';
 import { IndexedDbMatchRepository } from '../../adapters/persistence/indexeddb-match-repository';
 import {
   BrowserAudioService,
-  type AudioKey,
+  roleNarrationCues,
+  type AudioCue,
+  type EffectKey,
+  type MusicKey,
+  type NightRoleId,
 } from '../../adapters/audio/browser-audio-service';
 import {
   createDeadlineTimer,
@@ -58,8 +62,10 @@ import {
   LOCALE_OPTIONS,
   getRoleLabels,
   getActiveLocale,
+  installPageLocalization,
   isSupportedLocale,
   setActiveLocale,
+  translateInterfaceText,
   translateDeathReveal,
   translateNightPrompt,
   translatePhase,
@@ -91,6 +97,7 @@ type Screen =
   | 'HUNTER_OUTCOME'
   | 'MAYOR_VOTE'
   | 'MAYOR_RESULT'
+  | 'MAYOR_SUCCESSOR'
   | 'DISCUSSION'
   | 'DAY_VOTE'
   | 'VOTE_OUTCOME'
@@ -127,6 +134,9 @@ export function GameApp() {
   );
   const [narrationVolume, setNarrationVolume] = useState(0.85);
   const [effectsVolume, setEffectsVolume] = useState(0.7);
+  const [nightActionEffectsEnabled, setNightActionEffectsEnabled] =
+    useState(true);
+  const [musicVolume, setMusicVolume] = useState(0.38);
   const [locale, setLocale] = useState<SupportedLocale>(DEFAULT_LOCALE);
   const [recoveryIssue, setRecoveryIssue] = useState<string | null>(null);
   const [discussionTimer, setDiscussionTimer] =
@@ -150,8 +160,17 @@ export function GameApp() {
     setLocale(loadLocalePreference());
     setNarrationVolume(audioPreferences.narration);
     setEffectsVolume(audioPreferences.effects);
+    setNightActionEffectsEnabled(audioPreferences.nightActions);
+    setMusicVolume(audioPreferences.music);
     audioRef.current.setNarrationVolume(audioPreferences.narration);
     audioRef.current.setEffectsVolume(audioPreferences.effects);
+    audioRef.current.setMusicVolume(audioPreferences.music);
+    const playButtonBeep = (event: MouseEvent) => {
+      if (!(event.target instanceof Element) || !event.target.closest('button'))
+        return;
+      void audioRef.current?.playInterfaceBeep().catch(() => undefined);
+    };
+    document.addEventListener('click', playButtonBeep);
     void registerServiceWorker();
     const repository = new IndexedDbMatchRepository();
     const controller = new GameController({
@@ -200,6 +219,7 @@ export function GameApp() {
 
     return () => {
       active = false;
+      document.removeEventListener('click', playButtonBeep);
       repository.close();
       audioRef.current?.stopAll();
       audioRef.current = null;
@@ -212,15 +232,23 @@ export function GameApp() {
   useEffect(() => {
     setActiveLocale(locale);
     document.documentElement.lang = locale;
-  }, [locale]);
+    return installPageLocalization(locale);
+  }, [locale, screen]);
 
   useEffect(() => {
     const audio = audioRef.current;
-    const key = audioKeyForScreen(screen);
-    if (!audio || !key || audioStatus !== 'READY') return;
-    audio.stopAll();
-    void audio.play(key).catch(() => setAudioStatus('FAILED'));
-  }, [audioStatus, privateTurn?.roleId, screen]);
+    const cue = audioCueForScreen(screen, locale, privateTurn?.roleId);
+    if (!audio || !cue || audioStatus !== 'READY') return;
+    void audio.play(cue).catch(() => setAudioStatus('FAILED'));
+  }, [audioStatus, locale, privateTurn?.roleId, screen]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || audioStatus !== 'READY') return;
+    void audio
+      .setBackgroundMusic(musicKeyForScreen(screen))
+      .catch(() => setAudioStatus('FAILED'));
+  }, [audioStatus, screen]);
 
   function beginNewGame() {
     if (resumeView && resumeView.phase.type !== 'GAME_OVER') {
@@ -247,30 +275,54 @@ export function GameApp() {
     try {
       await audio.unlock();
       await audio.preload([
-        'NIGHT_START',
-        'ROLE_WAKE',
-        'ROLE_SLEEP',
-        'DAWN',
-        'DISCUSSION_START',
-        'VOTE_START',
-        'GAME_OVER',
+        ...phaseNarrationCues(locale),
+        ...roleNarrationCues(locale, NIGHT_AUDIO_ROLES),
+        ...ACTION_EFFECTS.map((key): AudioCue => ({ key, kind: 'EFFECT' })),
       ]);
+      await audio.play({ key: 'TEST_SOUND', kind: 'NARRATION', locale });
       setAudioStatus('READY');
     } catch {
       setAudioStatus('FAILED');
     }
   }
 
-  function changeAudioVolume(channel: 'narration' | 'effects', value: number) {
+  function changeAudioVolume(
+    channel: 'narration' | 'effects' | 'music',
+    value: number,
+  ) {
     if (channel === 'narration') {
       setNarrationVolume(value);
       audioRef.current?.setNarrationVolume(value);
-      saveAudioPreferences(value, effectsVolume);
-    } else {
+      saveAudioPreferences(
+        value,
+        effectsVolume,
+        musicVolume,
+        nightActionEffectsEnabled,
+      );
+    } else if (channel === 'effects') {
       setEffectsVolume(value);
       audioRef.current?.setEffectsVolume(value);
-      saveAudioPreferences(narrationVolume, value);
+      saveAudioPreferences(
+        narrationVolume,
+        value,
+        musicVolume,
+        nightActionEffectsEnabled,
+      );
+    } else {
+      setMusicVolume(value);
+      audioRef.current?.setMusicVolume(value);
+      saveAudioPreferences(
+        narrationVolume,
+        effectsVolume,
+        value,
+        nightActionEffectsEnabled,
+      );
     }
+  }
+
+  function changeNightActionEffects(enabled: boolean) {
+    setNightActionEffectsEnabled(enabled);
+    saveAudioPreferences(narrationVolume, effectsVolume, musicVolume, enabled);
   }
 
   function changeLocale(value: SupportedLocale) {
@@ -283,6 +335,10 @@ export function GameApp() {
   function resumeGame() {
     const controller = controllerRef.current;
     if (!controller || !resumeView) return;
+    if (requiresMayorSuccessor(resumeView)) {
+      setScreen('MAYOR_SUCCESSOR');
+      return;
+    }
     if (resumeView.phase.type === 'ROLE_REGISTRATION') {
       setRegistration(controller.getRoleRegistrationView());
       setScreen('HANDOFF');
@@ -552,6 +608,11 @@ export function GameApp() {
     setBusy(false);
     if (!result.ok) return setNightError(result.error.message);
 
+    const actionEffect = effectForNightAction(privateTurn.roleId, action);
+    if (actionEffect && nightActionEffectsEnabled) {
+      playEffect(audioRef.current, actionEffect);
+    }
+
     const nextPrivate = controller.getPrivateTurnView();
     setPrivateTurn(nextPrivate);
     if (privateTurn.roleId === 'SEER' && action !== 'PASS') {
@@ -682,6 +743,7 @@ export function GameApp() {
     });
     setBusy(false);
     if (!announced.ok) return setError(announced.error.message);
+    playEffect(audioRef.current, 'HUNTER_SHOT');
     setResumeView(controller.getPublicView());
     setScreen('HUNTER_OUTCOME');
   }
@@ -711,6 +773,10 @@ export function GameApp() {
       return setError(checked.error.message);
     }
     let view = controller.getPublicView();
+    if (!view) {
+      setBusy(false);
+      return;
+    }
     if (view?.winner) {
       const completed = await controller.dispatch({
         payload: {},
@@ -720,6 +786,12 @@ export function GameApp() {
       if (!completed.ok) return setError(completed.error.message);
       setResumeView(controller.getPublicView());
       setScreen('GAME_OVER');
+      return;
+    }
+
+    if (requiresMayorSuccessor(view)) {
+      setBusy(false);
+      setScreen('MAYOR_SUCCESSOR');
       return;
     }
 
@@ -769,7 +841,25 @@ export function GameApp() {
     setScreen('MAYOR_VOTE');
   }
 
-  async function castPublicBallot(targetPlayerId: string) {
+  async function appointMayorSuccessor(playerId: string) {
+    const controller = controllerRef.current;
+    const view = controller?.getPublicView();
+    if (!controller || !view) return;
+    setBusy(true);
+    setError(null);
+    const result = await controller.dispatch({
+      payload: { playerId },
+      type: 'APPOINT_MAYOR_SUCCESSOR',
+    });
+    setBusy(false);
+    if (!result.ok) return setError(result.error.message);
+    setResumeView(controller.getPublicView());
+    await continueAfterResolvedTriggers(
+      view.phase.type === 'MORNING' ? 'MORNING' : 'DAY',
+    );
+  }
+
+  async function castPublicBallot(targetPlayerId: string | null) {
     const controller = controllerRef.current;
     const voting = controller?.getPublicView()?.voting;
     if (!controller || !voting?.currentVoter) return;
@@ -1015,11 +1105,14 @@ export function GameApp() {
           <SettingsInfo
             audioStatus={audioStatus}
             effectsVolume={effectsVolume}
-            narrationVolume={narrationVolume}
             locale={locale}
+            musicVolume={musicVolume}
+            narrationVolume={narrationVolume}
+            nightActionEffectsEnabled={nightActionEffectsEnabled}
             onBack={() => setScreen('HOME')}
             onChangeVolume={changeAudioVolume}
             onChangeLocale={changeLocale}
+            onNightActionEffectsChange={changeNightActionEffects}
             onTestSound={() => void testSound()}
           />
         )}
@@ -1048,6 +1141,7 @@ export function GameApp() {
           <RulesSetup
             busy={busy}
             error={error}
+            locale={locale}
             onBack={() => setScreen('ROLES')}
             onChange={setRules}
             onContinue={() => void beginRegistration()}
@@ -1116,6 +1210,7 @@ export function GameApp() {
           <NightTurnScreen
             busy={busy}
             error={nightError}
+            locale={locale}
             onComplete={completeDecoyOrWitchTurn}
             onSubmit={(action, targetPlayerId) =>
               void submitNightAction(action, targetPlayerId)
@@ -1209,6 +1304,7 @@ export function GameApp() {
             mayorPlayerId={undefined}
             onCast={(targetPlayerId) => void castPublicBallot(targetPlayerId)}
             onResolve={() => void resolveMayorVote()}
+            onSkip={() => void castPublicBallot(null)}
             title="Elect the first Mayor"
             voting={resumeView.voting}
           />
@@ -1220,6 +1316,14 @@ export function GameApp() {
                 player.playerId === resumeView.publicOffice.mayorPlayerId,
             )}
             onContinue={() => void beginDiscussion()}
+          />
+        )}
+        {screen === 'MAYOR_SUCCESSOR' && resumeView && (
+          <MayorSuccessorScreen
+            busy={busy}
+            error={error}
+            onAppoint={(playerId) => void appointMayorSuccessor(playerId)}
+            players={resumeView.players}
           />
         )}
         {screen === 'DISCUSSION' && discussionTimer && (
@@ -1241,6 +1345,7 @@ export function GameApp() {
             mayorPlayerId={resumeView.publicOffice.mayorPlayerId}
             onCast={(targetPlayerId) => void castPublicBallot(targetPlayerId)}
             onResolve={() => void resolveDayVote()}
+            onSkip={() => void castPublicBallot(null)}
             title="Village execution vote"
             voting={resumeView.voting}
           />
@@ -1546,6 +1651,7 @@ function RoleSetup({
 function RulesSetup({
   busy,
   error,
+  // locale,
   onBack,
   onChange,
   onContinue,
@@ -1553,6 +1659,7 @@ function RulesSetup({
 }: {
   busy: boolean;
   error: string | null;
+  locale: SupportedLocale;
   onBack: () => void;
   onChange: (rules: SetupRules) => void;
   onContinue: () => void;
@@ -1616,11 +1723,18 @@ function RulesSetup({
           />
         </SettingGroup>
         <SettingGroup title="Fool & Mayor">
-          <Toggle
-            checked={rules.foolSurvivesFirstExecution}
-            label="Fool survives first execution and loses vote"
-            onChange={(foolSurvivesFirstExecution) =>
-              onChange({ ...rules, foolSurvivesFirstExecution })
+          <SegmentedControl
+            value={rules.foolExecutionBehavior}
+            options={[
+              [
+                'SURVIVES_FIRST_EXECUTION_LOSES_VOTE',
+                'Survives, loses vote',
+              ],
+              ['WINS_WHEN_EXECUTED', 'Wins when executed'],
+              ['DIES_NORMALLY', 'Dies normally'],
+            ]}
+            onChange={(foolExecutionBehavior) =>
+              onChange({ ...rules, foolExecutionBehavior })
             }
           />
           <div className="fixed-setting">
@@ -1953,6 +2067,7 @@ function NightWakeScreen({
 function NightTurnScreen({
   busy,
   error,
+  locale,
   onComplete,
   onSubmit,
   onTimeout,
@@ -1962,6 +2077,7 @@ function NightTurnScreen({
 }: {
   busy: boolean;
   error: string | null;
+  locale: SupportedLocale;
   onComplete: () => void;
   onSubmit: (
     action: 'TARGET' | 'SKIP' | 'CURSE' | 'HEAL' | 'POISON' | 'PASS',
@@ -1982,6 +2098,7 @@ function NightTurnScreen({
         <div className="decoy-orb" aria-hidden="true">
           {nightGlyph(turn.roleId)}
         </div>
+        <CursedRoleNotice locale={locale} turn={turn} />
         <h2>Hold the night still.</h2>
         <p>Complete this private pause, then close your eyes when prompted.</p>
         <button
@@ -2007,6 +2124,8 @@ function NightTurnScreen({
       <NightTurnHeader remaining={remaining} roleId={turn.roleId} />
       <p className="eyebrow">Private action</p>
       <h2>{nightPrompt(turn.roleId)}</h2>
+
+      <CursedRoleNotice locale={locale} turn={turn} />
 
       {isTargetRole && (
         <TargetGrid
@@ -2101,6 +2220,32 @@ function NightTurnScreen({
         </button>
       )}
     </section>
+  );
+}
+
+function CursedRoleNotice({
+  locale,
+  turn,
+}: {
+  locale: SupportedLocale;
+  turn: PrivateTurnView;
+}) {
+  const cursedPlayers = turn.privateContext?.cursedPlayers;
+  if (!cursedPlayers?.length) return null;
+
+  return (
+    <div className="curse-notice" role="status">
+      <strong>
+        {cursedPlayers.map((player) => player.displayName).join(', ')}
+        {translateInterfaceText(locale, ', you were cursed by the Demon Wolf.')}
+      </strong>
+      <p>
+        {translateInterfaceText(
+          locale,
+          'Your role ability is disabled. Wake with the Werewolves from now on; your new alignment is Werewolf.',
+        )}
+      </p>
+    </div>
   );
 }
 
@@ -2238,7 +2383,9 @@ function NightResultScreen({
     ? result.result.mode === 'TEAM'
       ? result.result.teamId === 'WEREWOLF'
         ? 'Werewolf aligned'
-        : 'Village aligned'
+        : result.result.teamId === 'VILLAGE'
+          ? 'Village aligned'
+          : 'Unclear role'
       : nightRoleLabel(result.result.roleId)
     : 'Unknown';
   return (
@@ -2433,6 +2580,7 @@ function VotingScreen({
   mayorPlayerId,
   onCast,
   onResolve,
+  onSkip,
   title,
   voting,
 }: {
@@ -2441,6 +2589,7 @@ function VotingScreen({
   mayorPlayerId?: string;
   onCast: (targetPlayerId: string) => void;
   onResolve: () => void;
+  onSkip: () => void;
   title: string;
   voting: PublicVotingView;
 }) {
@@ -2480,6 +2629,15 @@ function VotingScreen({
             targets={voting.eligibleTargets}
           />
           <InlineError message={error} />
+          <button
+            className="button button-secondary day-action"
+            disabled={busy}
+            onClick={onSkip}
+          >
+            {voting.type === 'MAYOR_ELECTION'
+              ? 'Skip mayor vote'
+              : 'Vote to hang no one'}
+          </button>
           <button
             className="button button-primary day-action"
             disabled={!target || busy}
@@ -2526,6 +2684,49 @@ function MayorResultScreen({
       <p>The Mayor's execution ballot counts ×2 while they hold office.</p>
       <button className="button button-primary day-action" onClick={onContinue}>
         Begin discussion
+      </button>
+    </section>
+  );
+}
+
+function MayorSuccessorScreen({
+  busy,
+  error,
+  onAppoint,
+  players,
+}: {
+  busy: boolean;
+  error: string | null;
+  onAppoint: (playerId: string) => void;
+  players: PublicGameView['players'];
+}) {
+  const [selected, setSelected] = useState<string | null>(null);
+  const eligiblePlayers = players.filter(
+    (player) => player.lifeState === 'ALIVE',
+  );
+  const successor = eligiblePlayers.find(
+    (player) => player.playerId === selected,
+  );
+  return (
+    <section className="day-screen mayor-result panel-enter">
+      <div className="mayor-seal" aria-hidden="true">
+        ✦
+      </div>
+      <p className="eyebrow">Mayor succession</p>
+      <h2>Choose the next Mayor</h2>
+      <p>The former Mayor has died. Give the seat to a living player.</p>
+      <TargetGrid
+        onSelect={setSelected}
+        selectedTarget={selected}
+        targets={eligiblePlayers}
+      />
+      <InlineError message={error} />
+      <button
+        className="button button-primary day-action"
+        disabled={!successor || busy}
+        onClick={() => successor && onAppoint(successor.playerId)}
+      >
+        Give the seat to {successor?.displayName ?? 'a player'}
       </button>
     </section>
   );
@@ -2621,14 +2822,28 @@ function GameOverScreen({
   onPlayAgain: () => void;
   view: PublicGameView;
 }) {
-  const villageWon = view.winner?.teamId === 'VILLAGE';
+  const winnerTeam = view.winner?.teamId;
+  const villageWon = winnerTeam === 'VILLAGE';
+  const foolWon = winnerTeam === 'FOOL';
+  const foolPlayerId =
+    view.winner && 'playerId' in view.winner ? view.winner.playerId : undefined;
+  const fool =
+    foolWon && foolPlayerId
+      ? view.players.find((player) => player.playerId === foolPlayerId)
+      : undefined;
   return (
     <section className="game-over-screen panel-enter">
       <div className="winner-symbol" aria-hidden="true">
-        {villageWon ? '☀' : '▲'}
+        {foolWon ? '★' : villageWon ? '☀' : '▲'}
       </div>
       <p className="eyebrow">Game over</p>
-      <h2>{villageWon ? 'The Village wins.' : 'The Werewolves win.'}</h2>
+      <h2>
+        {foolWon
+          ? `${fool?.displayName ?? 'The Fool'} wins.`
+          : villageWon
+            ? 'The Village wins.'
+            : 'The Werewolves win.'}
+      </h2>
       <p>{view.winner?.reason}</p>
       <div className="role-reveal-list">
         {view.revealedRoles?.map((player) => (
@@ -2654,20 +2869,29 @@ function GameOverScreen({
 function SettingsInfo({
   audioStatus,
   effectsVolume,
+  musicVolume,
   narrationVolume,
+  nightActionEffectsEnabled,
   locale,
   onBack,
   onChangeLocale,
   onChangeVolume,
+  onNightActionEffectsChange,
   onTestSound,
 }: {
   audioStatus: 'LOCKED' | 'READY' | 'FAILED';
   effectsVolume: number;
+  musicVolume: number;
   narrationVolume: number;
+  nightActionEffectsEnabled: boolean;
   locale: SupportedLocale;
   onBack: () => void;
   onChangeLocale: (locale: SupportedLocale) => void;
-  onChangeVolume: (channel: 'narration' | 'effects', value: number) => void;
+  onChangeVolume: (
+    channel: 'narration' | 'effects' | 'music',
+    value: number,
+  ) => void;
+  onNightActionEffectsChange: (enabled: boolean) => void;
   onTestSound: () => void;
 }) {
   return (
@@ -2729,6 +2953,31 @@ function SettingsInfo({
             step="0.05"
             type="range"
             value={effectsVolume}
+          />
+        </label>
+        <label className="audio-toggle">
+          <span>Night action sound effects</span>
+          <input
+            aria-label="Night action sound effects"
+            checked={nightActionEffectsEnabled}
+            onChange={(event) =>
+              onNightActionEffectsChange(event.target.checked)
+            }
+            type="checkbox"
+          />
+        </label>
+        <label>
+          <span>Background music volume</span>
+          <input
+            aria-label="Background music volume"
+            max="1"
+            min="0"
+            onChange={(event) =>
+              onChangeVolume('music', Number(event.target.value))
+            }
+            step="0.05"
+            type="range"
+            value={musicVolume}
           />
         </label>
         <button className="button button-secondary" onClick={onTestSound}>
@@ -2911,6 +3160,15 @@ function roleGlyph(roleId: MvpRoleId): string {
   return glyphs[roleId];
 }
 
+function requiresMayorSuccessor(view: PublicGameView): boolean {
+  return (
+    view.phase.type !== 'GAME_OVER' &&
+    view.publicOffice.mayorElectionCompleted &&
+    view.publicOffice.mayorPlayerId === undefined &&
+    view.players.some((player) => player.lifeState === 'ALIVE')
+  );
+}
+
 function nightRoleLabel(roleId: string): string {
   return (
     getRoleLabels(getActiveLocale())[roleId as MvpRoleId] ??
@@ -3054,26 +3312,120 @@ function discussionTimerKey(view: PublicGameView): string {
   return `${view.matchId}:discussion:${view.cycle}`;
 }
 
-function audioKeyForScreen(screen: Screen): AudioKey | null {
+const NIGHT_AUDIO_ROLES: readonly NightRoleId[] = [
+  'SEER',
+  'GUARD',
+  'WEREWOLF',
+  'DEMON_WOLF',
+  'WITCH',
+];
+const ACTION_EFFECTS: readonly EffectKey[] = [
+  'DEMON_CURSE',
+  'GUARD_SHIELD',
+  'HUNTER_SHOT',
+  'SEER_VISION',
+  'WEREWOLF_BITE',
+  'WITCH_HEAL',
+  'WITCH_POISON',
+];
+
+function phaseNarrationCues(locale: SupportedLocale): AudioCue[] {
+  return (
+    [
+      'DAWN',
+      'DISCUSSION_START',
+      'GAME_OVER',
+      'HUNTER_ACTION',
+      'MAYOR_VOTE_START',
+      'NIGHT_START',
+      'TEST_SOUND',
+      'VOTE_START',
+    ] as const
+  ).map((key) => ({ key, kind: 'NARRATION', locale }));
+}
+
+function audioCueForScreen(
+  screen: Screen,
+  locale: SupportedLocale,
+  roleId?: string,
+): AudioCue | null {
+  if (
+    (screen === 'NIGHT_WAKE' ||
+      screen === 'NIGHT_TURN' ||
+      screen === 'NIGHT_SLEEP') &&
+    NIGHT_AUDIO_ROLES.includes(roleId as NightRoleId)
+  ) {
+    return {
+      kind: 'ROLE_NARRATION',
+      locale,
+      roleId: roleId as NightRoleId,
+      stage:
+        screen === 'NIGHT_WAKE'
+          ? 'WAKE'
+          : screen === 'NIGHT_TURN'
+            ? 'ACTION'
+            : 'SLEEP',
+    };
+  }
   switch (screen) {
     case 'NIGHT_READY':
-      return 'NIGHT_START';
-    case 'NIGHT_WAKE':
-      return 'ROLE_WAKE';
-    case 'NIGHT_SLEEP':
-      return 'ROLE_SLEEP';
+      return { key: 'NIGHT_START', kind: 'NARRATION', locale };
     case 'DAWN':
-      return 'DAWN';
+      return { key: 'DAWN', kind: 'NARRATION', locale };
     case 'DISCUSSION':
-      return 'DISCUSSION_START';
+      return { key: 'DISCUSSION_START', kind: 'NARRATION', locale };
+    case 'HUNTER':
+      return { key: 'HUNTER_ACTION', kind: 'NARRATION', locale };
     case 'DAY_VOTE':
+      return { key: 'VOTE_START', kind: 'NARRATION', locale };
     case 'MAYOR_VOTE':
-      return 'VOTE_START';
+      return { key: 'MAYOR_VOTE_START', kind: 'NARRATION', locale };
     case 'GAME_OVER':
-      return 'GAME_OVER';
+      return { key: 'GAME_OVER', kind: 'NARRATION', locale };
     default:
       return null;
   }
+}
+
+function musicKeyForScreen(screen: Screen): MusicKey | null {
+  if (screen.startsWith('NIGHT_')) return 'NIGHT';
+  if (
+    screen === 'DAY_VOTE' ||
+    screen === 'MAYOR_VOTE' ||
+    screen === 'VOTE_OUTCOME'
+  ) {
+    return 'VOTE';
+  }
+  if (
+    [
+      'DAWN',
+      'MORNING_OUTCOME',
+      'HUNTER',
+      'HUNTER_OUTCOME',
+      'MAYOR_RESULT',
+      'DISCUSSION',
+    ].includes(screen)
+  ) {
+    return 'DAY';
+  }
+  return null;
+}
+
+function effectForNightAction(
+  roleId: string,
+  action: 'TARGET' | 'SKIP' | 'CURSE' | 'HEAL' | 'POISON' | 'PASS',
+): EffectKey | null {
+  if (roleId === 'SEER' && action === 'TARGET') return 'SEER_VISION';
+  if (roleId === 'GUARD' && action === 'TARGET') return 'GUARD_SHIELD';
+  if (roleId === 'WEREWOLF' && action === 'TARGET') return 'WEREWOLF_BITE';
+  if (roleId === 'DEMON_WOLF' && action === 'CURSE') return 'DEMON_CURSE';
+  if (roleId === 'WITCH' && action === 'HEAL') return 'WITCH_HEAL';
+  if (roleId === 'WITCH' && action === 'POISON') return 'WITCH_POISON';
+  return null;
+}
+
+function playEffect(audio: BrowserAudioService | null, key: EffectKey): void {
+  void audio?.play({ key, kind: 'EFFECT' }).catch(() => undefined);
 }
 
 const AUDIO_PREFERENCES_KEY = 'werewolf-audio-preferences-v1';
@@ -3096,7 +3448,12 @@ function saveLocalePreference(locale: SupportedLocale): void {
   }
 }
 
-function loadAudioPreferences(): { effects: number; narration: number } {
+function loadAudioPreferences(): {
+  effects: number;
+  music: number;
+  narration: number;
+  nightActions: boolean;
+} {
   try {
     const value = JSON.parse(
       localStorage.getItem(AUDIO_PREFERENCES_KEY) ?? 'null',
@@ -3109,21 +3466,34 @@ function loadAudioPreferences(): { effects: number; narration: number } {
       ) {
         return {
           effects: Math.max(0, Math.min(1, record.effects)),
+          music:
+            typeof record.music === 'number'
+              ? Math.max(0, Math.min(1, record.music))
+              : 0.38,
           narration: Math.max(0, Math.min(1, record.narration)),
+          nightActions:
+            typeof record.nightActions === 'boolean'
+              ? record.nightActions
+              : true,
         };
       }
     }
   } catch {
     // Corrupt preferences never prevent the game from loading.
   }
-  return { effects: 0.7, narration: 0.85 };
+  return { effects: 0.7, music: 0.38, narration: 0.85, nightActions: true };
 }
 
-function saveAudioPreferences(narration: number, effects: number): void {
+function saveAudioPreferences(
+  narration: number,
+  effects: number,
+  music: number,
+  nightActions: boolean,
+): void {
   try {
     localStorage.setItem(
       AUDIO_PREFERENCES_KEY,
-      JSON.stringify({ effects, narration }),
+      JSON.stringify({ effects, music, narration, nightActions }),
     );
   } catch {
     // Preferences are optional; active match state remains in IndexedDB.

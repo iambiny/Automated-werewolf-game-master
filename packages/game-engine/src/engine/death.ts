@@ -5,6 +5,7 @@ import type { MatchState, PublicOfficeState } from '../domain/match-state';
 import type { DeathCause } from '../domain/player';
 import type { DomainEvent } from '../events/domain-event';
 import type { GameTrigger } from '../domain/action';
+import { isPlayerCursed } from './curse';
 
 export interface PendingDeath {
   causes: DeathCause[];
@@ -54,6 +55,7 @@ export function applyDeaths(
 
     if (
       state.roleAssignments[death.playerId]?.currentRoleId === 'HUNTER' &&
+      !isPlayerCursed(state, death.playerId) &&
       death.causes.some((cause) =>
         rules.hunter.eligibleShotCauses.includes(cause),
       )

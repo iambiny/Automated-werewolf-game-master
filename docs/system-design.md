@@ -658,6 +658,20 @@ Demon Wolf narrator turn continues every night
 → DECOY
 ```
 
+The converted target retains `currentRoleId` and `originalRoleId`, but its
+role runtime state must record `cursed: true`. A cursed functional role is
+Werewolf-aligned for the shared attack and cannot use its original ability.
+Role command validation and queue eligibility must reject cursed Seer,
+Guard, Witch, and Fool actions. A cursed Witch's private turn must not expose
+the Werewolf victim or potion counts, and a cursed Hunter must not create a
+revenge-shot trigger when killed.
+
+The Fool is a neutral third alignment (`teamId: 'FOOL'`). Team-only Seer
+investigation returns `Unclear role` for the Fool. Neutral Fool players are
+not counted as Village opposition for Werewolf parity. Fool execution is a
+ruleset choice: die normally, survive once and lose the vote, or win when
+selected for execution.
+
 ---
 
 # 19. Hunter Architecture

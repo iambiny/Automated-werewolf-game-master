@@ -26,7 +26,7 @@ const PLAYERS = [
     roleId: 'HUNTER',
     teamId: 'VILLAGE',
   },
-  { displayName: 'Fool', id: 'fool', roleId: 'FOOL', teamId: 'VILLAGE' },
+  { displayName: 'Fool', id: 'fool', roleId: 'FOOL', teamId: 'FOOL' },
 ] as const;
 
 export function createNightTestState(
@@ -144,6 +144,32 @@ export function markTestPlayerDead(
           phaseId: state.phaseId,
         },
         lifeState: 'DEAD',
+      },
+    },
+  };
+}
+
+export function markTestPlayerCursed(
+  state: MatchState,
+  playerId: string,
+): MatchState {
+  const assignment = state.roleAssignments[playerId];
+  if (!assignment) throw new Error(`Unknown test player: ${playerId}`);
+
+  const existingRoleState = state.roleState[playerId];
+  return {
+    ...state,
+    events: [...state.events, { playerId, type: 'PLAYER_CURSED' }],
+    roleAssignments: {
+      ...state.roleAssignments,
+      [playerId]: { ...assignment, teamId: 'WEREWOLF' },
+    },
+    roleState: {
+      ...state.roleState,
+      [playerId]: {
+        data: { ...existingRoleState?.data, cursed: true },
+        playerId,
+        roleId: assignment.currentRoleId,
       },
     },
   };

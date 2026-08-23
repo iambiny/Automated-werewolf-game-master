@@ -13,7 +13,7 @@ import { FOOL_NO_VOTE_FLAG } from './fool';
 import { domainError, type EngineResult } from './result';
 
 export interface VoteBallot {
-  targetPlayerId: PlayerId;
+  targetPlayerId: PlayerId | null;
   voterId: PlayerId;
 }
 
@@ -21,6 +21,7 @@ export interface VoteResolutionRules {
   executionInterceptors: ExecutionInterceptor[];
   hunter: HunterRules;
   mayor: MayorRules;
+  random?: () => number;
   tiePolicy: TiePolicy;
 }
 
@@ -73,7 +74,8 @@ export function castVote(state: MatchState, ballot: VoteBallot): EngineResult {
   }
   if (
     !context.eligibleVoterIds.includes(ballot.voterId) ||
-    !context.eligibleTargetIds.includes(ballot.targetPlayerId)
+    (ballot.targetPlayerId !== null &&
+      !context.eligibleTargetIds.includes(ballot.targetPlayerId))
   ) {
     return failedVote(
       state,
@@ -81,7 +83,7 @@ export function castVote(state: MatchState, ballot: VoteBallot): EngineResult {
       'The voter or vote target is not eligible.',
     );
   }
-  if (context.ballots[ballot.voterId]) {
+  if (context.ballots[ballot.voterId] !== undefined) {
     return failedVote(
       state,
       'ALREADY_SUBMITTED',
@@ -89,11 +91,14 @@ export function castVote(state: MatchState, ballot: VoteBallot): EngineResult {
     );
   }
 
-  const event: DomainEvent = {
-    targetPlayerId: ballot.targetPlayerId,
-    type: 'VOTE_CAST',
-    voterId: ballot.voterId,
-  };
+  const event: DomainEvent =
+    ballot.targetPlayerId === null
+      ? { type: 'VOTE_SKIPPED', voterId: ballot.voterId }
+      : {
+          targetPlayerId: ballot.targetPlayerId,
+          type: 'VOTE_CAST',
+          voterId: ballot.voterId,
+        };
   const nextState: MatchState = {
     ...state,
     events: [...state.events, event],
@@ -135,6 +140,7 @@ export function resolveVote(
     weightedVotes: 0,
   }));
   for (const [voterId, targetPlayerId] of Object.entries(context.ballots)) {
+    if (targetPlayerId === null) continue;
     const tally = tallies.find(
       (entry) => entry.targetPlayerId === targetPlayerId,
     );
@@ -144,6 +150,28 @@ export function resolveVote(
           ? getVoteWeight(state, voterId, rules.mayor)
           : 1;
     }
+  }
+
+  const votesCast = Object.values(context.ballots).filter(
+    (targetPlayerId) => targetPlayerId !== null,
+  ).length;
+  if (votesCast === 0) {
+    if (context.type === 'DAY_EXECUTION') {
+      return resolveNoExecution(state, tallies);
+    }
+
+    const selectedPlayerId = selectRandomPlayer(
+      context.eligibleTargetIds,
+      rules.random ?? Math.random,
+    );
+    if (!selectedPlayerId) {
+      return failedVote(
+        state,
+        'ACTION_NOT_AVAILABLE',
+        'There is no eligible player to become Mayor.',
+      );
+    }
+    return electMayor(state, selectedPlayerId, tallies);
   }
 
   const highestVote = Math.max(...tallies.map((tally) => tally.weightedVotes));
@@ -170,6 +198,34 @@ export function resolveVote(
   return executeVoteTarget(state, selectedPlayerId, tallies, rules);
 }
 
+function resolveNoExecution(
+  state: MatchState,
+  tallies: VoteResolution['tallies'],
+): EngineResult {
+  const event: DomainEvent = {
+    result: { tallies, tiedPlayerIds: [] },
+    type: 'VOTE_RESOLVED',
+  };
+  const nextState = clearVotingContext({
+    ...state,
+    events: [...state.events, event],
+  });
+
+  return { events: [event], ok: true, state: nextState };
+}
+
+function selectRandomPlayer(
+  playerIds: PlayerId[],
+  random: () => number,
+): PlayerId | undefined {
+  if (playerIds.length === 0) return undefined;
+  const index = Math.min(
+    playerIds.length - 1,
+    Math.max(0, Math.floor(random() * playerIds.length)),
+  );
+  return playerIds[index];
+}
+
 export function getVoteWeight(
   state: MatchState,
   voterId: PlayerId,
@@ -178,6 +234,50 @@ export function getVoteWeight(
   return state.publicOffice.mayorPlayerId === voterId
     ? rules.executionVoteWeight
     : 1;
+}
+
+export function appointMayorSuccessor(
+  state: MatchState,
+  playerId: PlayerId,
+): EngineResult {
+  if (
+    !state.publicOffice.mayorElectionCompleted ||
+    state.publicOffice.mayorPlayerId !== undefined
+  ) {
+    return failedVote(
+      state,
+      'ACTION_NOT_AVAILABLE',
+      'A Mayor succession is not required.',
+    );
+  }
+  if (
+    state.phase.type !== 'MORNING' &&
+    state.phase.type !== 'DAY_DEATH_RESOLUTION'
+  ) {
+    return failedVote(
+      state,
+      'INVALID_PHASE',
+      'A Mayor successor can only be appointed after a death is resolved.',
+    );
+  }
+  if (state.players[playerId]?.lifeState !== 'ALIVE') {
+    return failedVote(
+      state,
+      'INVALID_TARGET',
+      'The Mayor successor must be alive.',
+    );
+  }
+
+  const event: DomainEvent = { playerId, type: 'MAYOR_SUCCESSOR_APPOINTED' };
+  return {
+    events: [event],
+    ok: true,
+    state: {
+      ...state,
+      events: [...state.events, event],
+      publicOffice: { ...state.publicOffice, mayorPlayerId: playerId },
+    },
+  };
 }
 
 function startVotingContext(
@@ -268,6 +368,32 @@ function executeVoteTarget(
   );
   const interception = interceptor?.intercept(state, targetPlayerId);
   const baseResult: VoteResolution = { tallies, tiedPlayerIds: [] };
+
+  if (interceptor && interception?.type === 'WIN') {
+    const winner = {
+      playerId: targetPlayerId,
+      reason: 'The Fool was selected for execution.',
+      teamId: 'FOOL',
+    } as const;
+    const voteEvent: DomainEvent = {
+      result: baseResult,
+      type: 'VOTE_RESOLVED',
+    };
+    const interceptionEvent: DomainEvent = {
+      playerId: targetPlayerId,
+      roleId: interceptor.roleId,
+      type: 'EXECUTION_INTERCEPTED',
+    };
+    const winnerEvent: DomainEvent = { type: 'WINNER_DECLARED', winner };
+    const events = [voteEvent, interceptionEvent, winnerEvent];
+    const nextState = clearVotingContext({
+      ...state,
+      events: [...state.events, ...events],
+      winner,
+    });
+
+    return { events, ok: true, state: nextState };
+  }
 
   if (interceptor && interception?.type === 'SURVIVE') {
     const event: DomainEvent = {

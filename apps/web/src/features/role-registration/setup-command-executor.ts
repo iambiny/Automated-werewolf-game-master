@@ -1,6 +1,7 @@
 import {
   advanceNightTurn,
   announcePendingDeaths,
+  appointMayorSuccessor,
   castVote,
   completeRoleRegistration,
   declareWinner,
@@ -207,10 +208,15 @@ function executeSetupCommand(
       });
     case 'START_MAYOR_ELECTION':
       return startMayorElection(state, rules.mayor);
+    case 'APPOINT_MAYOR_SUCCESSOR':
+      return appointMayorSuccessor(
+        state,
+        (command.payload as { playerId: string }).playerId,
+      );
     case 'CAST_VOTE':
       return castVote(
         state,
-        command.payload as { targetPlayerId: string; voterId: string },
+        command.payload as { targetPlayerId: string | null; voterId: string },
       );
     case 'RESOLVE_VOTE':
       return resolveVote(state, {
