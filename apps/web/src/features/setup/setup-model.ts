@@ -1,4 +1,8 @@
-import type { JsonObject, RoleCompositionEntry } from '@werewolf/game-engine';
+import type {
+  FoolExecutionBehavior,
+  JsonObject,
+  RoleCompositionEntry,
+} from '@werewolf/game-engine';
 import type { MvpRoleId, MvpRuleConfig } from '@werewolf/role-catalog';
 import { MVP_ROLE_IDS } from '@werewolf/role-catalog';
 
@@ -14,7 +18,7 @@ export type RoleCounts = Record<MvpRoleId, number>;
 export interface SetupRules {
   deathRevealPolicy: 'NONE' | 'ROLE' | 'TEAM';
   discussionTimerSeconds: number;
-  foolSurvivesFirstExecution: boolean;
+  foolExecutionBehavior: FoolExecutionBehavior;
   guardAllowConsecutiveTarget: boolean;
   guardAllowSelfProtect: boolean;
   roleTimerSeconds: number;
@@ -45,7 +49,7 @@ export const DEFAULT_ROLE_COUNTS: RoleCounts = {
 export const DEFAULT_SETUP_RULES: SetupRules = {
   deathRevealPolicy: 'ROLE',
   discussionTimerSeconds: 300,
-  foolSurvivesFirstExecution: true,
+  foolExecutionBehavior: 'SURVIVES_FIRST_EXECUTION_LOSES_VOTE',
   guardAllowConsecutiveTarget: false,
   guardAllowSelfProtect: true,
   roleTimerSeconds: 45,
@@ -92,9 +96,7 @@ export function toRoleComposition(counts: RoleCounts): RoleCompositionEntry[] {
 export function toMvpRuleConfig(rules: SetupRules): MvpRuleConfig {
   return {
     fool: {
-      executionBehavior: rules.foolSurvivesFirstExecution
-        ? 'SURVIVES_FIRST_EXECUTION_LOSES_VOTE'
-        : 'DIES_NORMALLY',
+      executionBehavior: rules.foolExecutionBehavior,
     },
     guard: {
       allowSameTargetConsecutiveNights: rules.guardAllowConsecutiveTarget,
@@ -147,10 +149,7 @@ export function parseSetupRules(value: JsonObject | null): SetupRules {
       value.discussionTimerSeconds,
       DEFAULT_SETUP_RULES.discussionTimerSeconds,
     ),
-    foolSurvivesFirstExecution: booleanOr(
-      value.foolSurvivesFirstExecution,
-      DEFAULT_SETUP_RULES.foolSurvivesFirstExecution,
-    ),
+    foolExecutionBehavior: parseFoolExecutionBehavior(value),
     guardAllowConsecutiveTarget: booleanOr(
       value.guardAllowConsecutiveTarget,
       DEFAULT_SETUP_RULES.guardAllowConsecutiveTarget,
@@ -180,6 +179,25 @@ export function parseSetupRules(value: JsonObject | null): SetupRules {
       DEFAULT_SETUP_RULES.witchSeesVictim,
     ),
   };
+}
+
+function parseFoolExecutionBehavior(value: JsonObject): FoolExecutionBehavior {
+  if (
+    value.foolExecutionBehavior === 'DIES_NORMALLY' ||
+    value.foolExecutionBehavior === 'SURVIVES_FIRST_EXECUTION_LOSES_VOTE' ||
+    value.foolExecutionBehavior === 'WINS_WHEN_EXECUTED'
+  ) {
+    return value.foolExecutionBehavior;
+  }
+
+  // Migrate settings saved by versions that exposed this as a toggle.
+  if (typeof value.foolSurvivesFirstExecution === 'boolean') {
+    return value.foolSurvivesFirstExecution
+      ? 'SURVIVES_FIRST_EXECUTION_LOSES_VOTE'
+      : 'DIES_NORMALLY';
+  }
+
+  return DEFAULT_SETUP_RULES.foolExecutionBehavior;
 }
 
 function normalizeName(name: string): string {

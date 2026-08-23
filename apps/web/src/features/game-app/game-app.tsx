@@ -65,6 +65,7 @@ import {
   installPageLocalization,
   isSupportedLocale,
   setActiveLocale,
+  translateInterfaceText,
   translateDeathReveal,
   translateNightPrompt,
   translatePhase,
@@ -96,6 +97,7 @@ type Screen =
   | 'HUNTER_OUTCOME'
   | 'MAYOR_VOTE'
   | 'MAYOR_RESULT'
+  | 'MAYOR_SUCCESSOR'
   | 'DISCUSSION'
   | 'DAY_VOTE'
   | 'VOTE_OUTCOME'
@@ -333,6 +335,10 @@ export function GameApp() {
   function resumeGame() {
     const controller = controllerRef.current;
     if (!controller || !resumeView) return;
+    if (requiresMayorSuccessor(resumeView)) {
+      setScreen('MAYOR_SUCCESSOR');
+      return;
+    }
     if (resumeView.phase.type === 'ROLE_REGISTRATION') {
       setRegistration(controller.getRoleRegistrationView());
       setScreen('HANDOFF');
@@ -767,6 +773,10 @@ export function GameApp() {
       return setError(checked.error.message);
     }
     let view = controller.getPublicView();
+    if (!view) {
+      setBusy(false);
+      return;
+    }
     if (view?.winner) {
       const completed = await controller.dispatch({
         payload: {},
@@ -776,6 +786,12 @@ export function GameApp() {
       if (!completed.ok) return setError(completed.error.message);
       setResumeView(controller.getPublicView());
       setScreen('GAME_OVER');
+      return;
+    }
+
+    if (requiresMayorSuccessor(view)) {
+      setBusy(false);
+      setScreen('MAYOR_SUCCESSOR');
       return;
     }
 
@@ -825,7 +841,25 @@ export function GameApp() {
     setScreen('MAYOR_VOTE');
   }
 
-  async function castPublicBallot(targetPlayerId: string) {
+  async function appointMayorSuccessor(playerId: string) {
+    const controller = controllerRef.current;
+    const view = controller?.getPublicView();
+    if (!controller || !view) return;
+    setBusy(true);
+    setError(null);
+    const result = await controller.dispatch({
+      payload: { playerId },
+      type: 'APPOINT_MAYOR_SUCCESSOR',
+    });
+    setBusy(false);
+    if (!result.ok) return setError(result.error.message);
+    setResumeView(controller.getPublicView());
+    await continueAfterResolvedTriggers(
+      view.phase.type === 'MORNING' ? 'MORNING' : 'DAY',
+    );
+  }
+
+  async function castPublicBallot(targetPlayerId: string | null) {
     const controller = controllerRef.current;
     const voting = controller?.getPublicView()?.voting;
     if (!controller || !voting?.currentVoter) return;
@@ -1107,6 +1141,7 @@ export function GameApp() {
           <RulesSetup
             busy={busy}
             error={error}
+            locale={locale}
             onBack={() => setScreen('ROLES')}
             onChange={setRules}
             onContinue={() => void beginRegistration()}
@@ -1175,6 +1210,7 @@ export function GameApp() {
           <NightTurnScreen
             busy={busy}
             error={nightError}
+            locale={locale}
             onComplete={completeDecoyOrWitchTurn}
             onSubmit={(action, targetPlayerId) =>
               void submitNightAction(action, targetPlayerId)
@@ -1268,6 +1304,7 @@ export function GameApp() {
             mayorPlayerId={undefined}
             onCast={(targetPlayerId) => void castPublicBallot(targetPlayerId)}
             onResolve={() => void resolveMayorVote()}
+            onSkip={() => void castPublicBallot(null)}
             title="Elect the first Mayor"
             voting={resumeView.voting}
           />
@@ -1279,6 +1316,14 @@ export function GameApp() {
                 player.playerId === resumeView.publicOffice.mayorPlayerId,
             )}
             onContinue={() => void beginDiscussion()}
+          />
+        )}
+        {screen === 'MAYOR_SUCCESSOR' && resumeView && (
+          <MayorSuccessorScreen
+            busy={busy}
+            error={error}
+            onAppoint={(playerId) => void appointMayorSuccessor(playerId)}
+            players={resumeView.players}
           />
         )}
         {screen === 'DISCUSSION' && discussionTimer && (
@@ -1300,6 +1345,7 @@ export function GameApp() {
             mayorPlayerId={resumeView.publicOffice.mayorPlayerId}
             onCast={(targetPlayerId) => void castPublicBallot(targetPlayerId)}
             onResolve={() => void resolveDayVote()}
+            onSkip={() => void castPublicBallot(null)}
             title="Village execution vote"
             voting={resumeView.voting}
           />
@@ -1605,6 +1651,7 @@ function RoleSetup({
 function RulesSetup({
   busy,
   error,
+  locale,
   onBack,
   onChange,
   onContinue,
@@ -1612,6 +1659,7 @@ function RulesSetup({
 }: {
   busy: boolean;
   error: string | null;
+  locale: SupportedLocale;
   onBack: () => void;
   onChange: (rules: SetupRules) => void;
   onContinue: () => void;
@@ -1675,11 +1723,18 @@ function RulesSetup({
           />
         </SettingGroup>
         <SettingGroup title="Fool & Mayor">
-          <Toggle
-            checked={rules.foolSurvivesFirstExecution}
-            label="Fool survives first execution and loses vote"
-            onChange={(foolSurvivesFirstExecution) =>
-              onChange({ ...rules, foolSurvivesFirstExecution })
+          <SegmentedControl
+            value={rules.foolExecutionBehavior}
+            options={[
+              [
+                'SURVIVES_FIRST_EXECUTION_LOSES_VOTE',
+                'Survives, loses vote',
+              ],
+              ['WINS_WHEN_EXECUTED', 'Wins when executed'],
+              ['DIES_NORMALLY', 'Dies normally'],
+            ]}
+            onChange={(foolExecutionBehavior) =>
+              onChange({ ...rules, foolExecutionBehavior })
             }
           />
           <div className="fixed-setting">
@@ -2012,6 +2067,7 @@ function NightWakeScreen({
 function NightTurnScreen({
   busy,
   error,
+  locale,
   onComplete,
   onSubmit,
   onTimeout,
@@ -2021,6 +2077,7 @@ function NightTurnScreen({
 }: {
   busy: boolean;
   error: string | null;
+  locale: SupportedLocale;
   onComplete: () => void;
   onSubmit: (
     action: 'TARGET' | 'SKIP' | 'CURSE' | 'HEAL' | 'POISON' | 'PASS',
@@ -2041,6 +2098,7 @@ function NightTurnScreen({
         <div className="decoy-orb" aria-hidden="true">
           {nightGlyph(turn.roleId)}
         </div>
+        <CursedRoleNotice locale={locale} turn={turn} />
         <h2>Hold the night still.</h2>
         <p>Complete this private pause, then close your eyes when prompted.</p>
         <button
@@ -2066,6 +2124,8 @@ function NightTurnScreen({
       <NightTurnHeader remaining={remaining} roleId={turn.roleId} />
       <p className="eyebrow">Private action</p>
       <h2>{nightPrompt(turn.roleId)}</h2>
+
+      <CursedRoleNotice locale={locale} turn={turn} />
 
       {isTargetRole && (
         <TargetGrid
@@ -2160,6 +2220,32 @@ function NightTurnScreen({
         </button>
       )}
     </section>
+  );
+}
+
+function CursedRoleNotice({
+  locale,
+  turn,
+}: {
+  locale: SupportedLocale;
+  turn: PrivateTurnView;
+}) {
+  const cursedPlayers = turn.privateContext?.cursedPlayers;
+  if (!cursedPlayers?.length) return null;
+
+  return (
+    <div className="curse-notice" role="status">
+      <strong>
+        {cursedPlayers.map((player) => player.displayName).join(', ')}
+        {translateInterfaceText(locale, ', you were cursed by the Demon Wolf.')}
+      </strong>
+      <p>
+        {translateInterfaceText(
+          locale,
+          'Your role ability is disabled. Wake with the Werewolves from now on; your new alignment is Werewolf.',
+        )}
+      </p>
+    </div>
   );
 }
 
@@ -2297,7 +2383,9 @@ function NightResultScreen({
     ? result.result.mode === 'TEAM'
       ? result.result.teamId === 'WEREWOLF'
         ? 'Werewolf aligned'
-        : 'Village aligned'
+        : result.result.teamId === 'VILLAGE'
+          ? 'Village aligned'
+          : 'Unclear role'
       : nightRoleLabel(result.result.roleId)
     : 'Unknown';
   return (
@@ -2492,6 +2580,7 @@ function VotingScreen({
   mayorPlayerId,
   onCast,
   onResolve,
+  onSkip,
   title,
   voting,
 }: {
@@ -2500,6 +2589,7 @@ function VotingScreen({
   mayorPlayerId?: string;
   onCast: (targetPlayerId: string) => void;
   onResolve: () => void;
+  onSkip: () => void;
   title: string;
   voting: PublicVotingView;
 }) {
@@ -2539,6 +2629,15 @@ function VotingScreen({
             targets={voting.eligibleTargets}
           />
           <InlineError message={error} />
+          <button
+            className="button button-secondary day-action"
+            disabled={busy}
+            onClick={onSkip}
+          >
+            {voting.type === 'MAYOR_ELECTION'
+              ? 'Skip mayor vote'
+              : 'Vote to hang no one'}
+          </button>
           <button
             className="button button-primary day-action"
             disabled={!target || busy}
@@ -2585,6 +2684,49 @@ function MayorResultScreen({
       <p>The Mayor's execution ballot counts ×2 while they hold office.</p>
       <button className="button button-primary day-action" onClick={onContinue}>
         Begin discussion
+      </button>
+    </section>
+  );
+}
+
+function MayorSuccessorScreen({
+  busy,
+  error,
+  onAppoint,
+  players,
+}: {
+  busy: boolean;
+  error: string | null;
+  onAppoint: (playerId: string) => void;
+  players: PublicGameView['players'];
+}) {
+  const [selected, setSelected] = useState<string | null>(null);
+  const eligiblePlayers = players.filter(
+    (player) => player.lifeState === 'ALIVE',
+  );
+  const successor = eligiblePlayers.find(
+    (player) => player.playerId === selected,
+  );
+  return (
+    <section className="day-screen mayor-result panel-enter">
+      <div className="mayor-seal" aria-hidden="true">
+        ✦
+      </div>
+      <p className="eyebrow">Mayor succession</p>
+      <h2>Choose the next Mayor</h2>
+      <p>The former Mayor has died. Give the seat to a living player.</p>
+      <TargetGrid
+        onSelect={setSelected}
+        selectedTarget={selected}
+        targets={eligiblePlayers}
+      />
+      <InlineError message={error} />
+      <button
+        className="button button-primary day-action"
+        disabled={!successor || busy}
+        onClick={() => successor && onAppoint(successor.playerId)}
+      >
+        Give the seat to {successor?.displayName ?? 'a player'}
       </button>
     </section>
   );
@@ -2680,14 +2822,28 @@ function GameOverScreen({
   onPlayAgain: () => void;
   view: PublicGameView;
 }) {
-  const villageWon = view.winner?.teamId === 'VILLAGE';
+  const winnerTeam = view.winner?.teamId;
+  const villageWon = winnerTeam === 'VILLAGE';
+  const foolWon = winnerTeam === 'FOOL';
+  const foolPlayerId =
+    view.winner && 'playerId' in view.winner ? view.winner.playerId : undefined;
+  const fool =
+    foolWon && foolPlayerId
+      ? view.players.find((player) => player.playerId === foolPlayerId)
+      : undefined;
   return (
     <section className="game-over-screen panel-enter">
       <div className="winner-symbol" aria-hidden="true">
-        {villageWon ? '☀' : '▲'}
+        {foolWon ? '★' : villageWon ? '☀' : '▲'}
       </div>
       <p className="eyebrow">Game over</p>
-      <h2>{villageWon ? 'The Village wins.' : 'The Werewolves win.'}</h2>
+      <h2>
+        {foolWon
+          ? `${fool?.displayName ?? 'The Fool'} wins.`
+          : villageWon
+            ? 'The Village wins.'
+            : 'The Werewolves win.'}
+      </h2>
       <p>{view.winner?.reason}</p>
       <div className="role-reveal-list">
         {view.revealedRoles?.map((player) => (
@@ -3002,6 +3158,15 @@ function roleGlyph(roleId: MvpRoleId): string {
     WITCH: '✦',
   };
   return glyphs[roleId];
+}
+
+function requiresMayorSuccessor(view: PublicGameView): boolean {
+  return (
+    view.phase.type !== 'GAME_OVER' &&
+    view.publicOffice.mayorElectionCompleted &&
+    view.publicOffice.mayorPlayerId === undefined &&
+    view.players.some((player) => player.lifeState === 'ALIVE')
+  );
 }
 
 function nightRoleLabel(roleId: string): string {

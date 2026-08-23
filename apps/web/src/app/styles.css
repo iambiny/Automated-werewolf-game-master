@@ -1299,6 +1299,18 @@ p {
   color: var(--gold);
   font-size: 0.7rem;
 }
+.curse-notice {
+  border: 1px solid rgba(183, 67, 79, 0.7);
+  border-radius: 16px;
+  background: rgba(91, 18, 30, 0.35);
+  padding: 1rem;
+}
+.curse-notice strong {
+  color: #ffb8bf;
+}
+.curse-notice p {
+  margin-bottom: 0;
+}
 .all-ballots {
   display: flex;
   width: min(100%, 28rem);

@@ -6,6 +6,7 @@ import type { MatchState } from '../domain/match-state';
 import type { RoleRuntimeState } from '../domain/role';
 import type { DomainEvent } from '../events/domain-event';
 import { domainError, type DomainError, type EngineResult } from './result';
+import { isPlayerCursed } from './curse';
 
 interface NightActionUpdates {
   nightContext?: Partial<NightContext>;
@@ -58,7 +59,8 @@ export function getLivingRoleHolderIds(
     .filter(
       ([playerId, assignment]) =>
         assignment.currentRoleId === roleId &&
-        state.players[playerId]?.lifeState === 'ALIVE',
+        state.players[playerId]?.lifeState === 'ALIVE' &&
+        !isPlayerCursed(state, playerId),
     )
     .map(([playerId]) => playerId);
 }

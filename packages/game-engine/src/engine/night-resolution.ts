@@ -8,6 +8,7 @@ import type { RoleRuntimeState } from '../domain/role';
 import type { DomainEvent } from '../events/domain-event';
 import { applyDeaths, type PendingDeath } from './death';
 import { domainError, type EngineResult } from './result';
+import { CURSED_ROLE_STATE_KEY } from './curse';
 
 export function resolveNight(
   state: MatchState,
@@ -136,13 +137,22 @@ function applyCurseConversion(
     } satisfies RoleRuntimeState;
   }
 
+  const targetRoleState = state.roleState[targetPlayerId];
+  roleState[targetPlayerId] = {
+    data: {
+      ...targetRoleState?.data,
+      [CURSED_ROLE_STATE_KEY]: true,
+    },
+    playerId: targetPlayerId,
+    roleId: assignment.currentRoleId,
+  };
+
   return {
     ...state,
     roleAssignments: {
       ...state.roleAssignments,
       [targetPlayerId]: {
         ...assignment,
-        currentRoleId: 'WEREWOLF',
         teamId: 'WEREWOLF',
       },
     },

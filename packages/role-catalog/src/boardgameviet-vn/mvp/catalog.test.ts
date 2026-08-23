@@ -12,7 +12,7 @@ import { createMvpRoleRuntimeState } from './rules';
 
 const ROLE_TEAMS: Record<MvpRoleId, RoleAssignment['teamId']> = {
   DEMON_WOLF: 'WEREWOLF',
-  FOOL: 'VILLAGE',
+  FOOL: 'FOOL',
   GUARD: 'VILLAGE',
   HUNTER: 'VILLAGE',
   SEER: 'VILLAGE',
@@ -185,6 +185,29 @@ describe('MVP role catalog', () => {
 
     expect(modeFor(exhausted, 'WITCH')).toBe('DECOY');
   });
+
+  it.each(['SEER', 'GUARD', 'WITCH'] as const)(
+    'keeps a cursed %s turn narrated but disables its ability',
+    (roleId) => {
+      const state = makeMatch();
+      const id = playerId(roleId);
+      const existing = state.roleState[id];
+      const cursed: MatchState = {
+        ...state,
+        events: [...state.events, { playerId: id, type: 'PLAYER_CURSED' }],
+        roleState: {
+          ...state.roleState,
+          [id]: {
+            data: { ...existing?.data, cursed: true },
+            playerId: id,
+            roleId,
+          },
+        },
+      };
+
+      expect(modeFor(cursed, roleId)).toBe('DECOY');
+    },
+  );
 
   it('keeps a dead Demon Wolf and dead Witch narrated as DECOY', () => {
     const state = markDead(markDead(makeMatch(), 'DEMON_WOLF'), 'WITCH');

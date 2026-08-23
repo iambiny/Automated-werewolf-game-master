@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { EngineResult, MatchState, NightResolutionRules } from '../index';
 import {
   createNightTestState,
+  markTestPlayerCursed,
   markTestPlayerDead,
   setActiveNightTurn,
   setNightResolutionPhase,
@@ -60,6 +61,24 @@ describe('Hunter mechanics', () => {
     expect(
       state.events.some((event) => event.type === 'HUNTER_SHOT_RESOLVED'),
     ).toBe(false);
+  });
+
+  it('does not give a cursed Hunter a revenge trigger', () => {
+    let state = createNightTestState('WEREWOLF');
+    state = success(
+      submitWerewolfAttack(
+        setActiveNightTurn(state, 'WEREWOLF'),
+        { actionId: 'attack-cursed-hunter', targetPlayerId: 'hunter' },
+        { allowNoAttack: false, selectionStrategy: 'SHARED_SELECTION' },
+      ),
+    );
+    state = markTestPlayerCursed(state, 'hunter');
+    state = success(
+      resolveNight(setNightResolutionPhase(state), resolutionRules),
+    );
+
+    expect(state.players.hunter?.lifeState).toBe('DEAD');
+    expect(state.pendingTriggers).toEqual([]);
   });
 
   it('blocks winner evaluation until the mandatory shot resolves', () => {

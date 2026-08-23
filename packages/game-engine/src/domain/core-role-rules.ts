@@ -39,7 +39,9 @@ export interface HunterRules {
 }
 
 export type FoolExecutionBehavior =
-  'DIES_NORMALLY' | 'SURVIVES_FIRST_EXECUTION_LOSES_VOTE';
+  | 'DIES_NORMALLY'
+  | 'SURVIVES_FIRST_EXECUTION_LOSES_VOTE'
+  | 'WINS_WHEN_EXECUTED';
 
 export interface FoolRules {
   executionBehavior: FoolExecutionBehavior;

@@ -5,6 +5,7 @@ import type {
   RoleDefinition,
   RoleId,
 } from '@werewolf/game-engine';
+import { isPlayerCursed } from '@werewolf/game-engine';
 
 import type { MvpRoleId } from './ids';
 
@@ -107,7 +108,7 @@ export const mvpRoleCatalog = {
     hasPhysicalCard: true,
     id: 'FOOL',
     name: 'Fool / Kẻ ngốc',
-    teamId: 'VILLAGE',
+    teamId: 'FOOL',
   },
 } as const satisfies RoleCatalog & Record<MvpRoleId, RoleDefinition>;
 
@@ -131,7 +132,9 @@ function isRoleConfigured(state: MatchState, roleId: RoleId): boolean {
 
 function hasLivingHolder(state: MatchState, holderIds: PlayerId[]): boolean {
   return holderIds.some(
-    (playerId) => state.players[playerId]?.lifeState === 'ALIVE',
+    (playerId) =>
+      state.players[playerId]?.lifeState === 'ALIVE' &&
+      !isPlayerCursed(state, playerId),
   );
 }
 
@@ -160,6 +163,7 @@ function hasLivingWitchWithPotion(
 ): boolean {
   return holderIds.some((playerId) => {
     if (state.players[playerId]?.lifeState !== 'ALIVE') return false;
+    if (isPlayerCursed(state, playerId)) return false;
 
     const data = state.roleState[playerId]?.data;
     const healPotionRemaining = data?.healPotionRemaining;

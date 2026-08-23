@@ -64,6 +64,22 @@ describe('multi-language', () => {
         'Werewolf-aligned players reached parity with the opposition.',
       ),
     ).toBe('Phe Ma Sói đã đạt thế cân bằng với phe đối lập.');
+    expect(translateInterfaceText('vi', 'Survives, loses vote')).toBe(
+      'Sống sót, mất quyền bỏ phiếu',
+    );
+    expect(translateInterfaceText('vi', 'Wins when executed')).toBe(
+      'Thắng khi bị treo cổ',
+    );
+    expect(
+      translateInterfaceText(
+        'vi',
+        'Your role ability is disabled. Wake with the Werewolves from now on; your new alignment is Werewolf.',
+      ),
+    ).toBe(
+      'Khả năng của vai trò này đã bị vô hiệu hóa. Từ bây giờ, hãy thức dậy cùng Ma Sói; phe mới của bạn là Ma Sói.',
+    );
+    expect(translateInterfaceText('vi', 'Lan wins.')).toBe('Lan chiến thắng.');
+    expect(translateInterfaceText('vi', 'Unclear role')).toBe('Không rõ phe');
   });
 
   it('accepts only supported locale codes', () => {

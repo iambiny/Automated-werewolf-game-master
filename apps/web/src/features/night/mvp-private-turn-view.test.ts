@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { createNightTestState } from '../../../../../packages/game-engine/src/testing/night-state';
+import {
+  createNightTestState,
+  markTestPlayerCursed,
+} from '../../../../../packages/game-engine/src/testing/night-state';
 import { DEFAULT_SETUP_RULES, toMvpRuleConfig } from '../setup/setup-model';
 import { toMvpPrivateTurnView } from './mvp-private-turn-view';
 
@@ -34,6 +37,18 @@ describe('MVP private night projection', () => {
     });
   });
 
+  it('removes the ability UI from a cursed functional role', () => {
+    const state = markTestPlayerCursed(createNightTestState('SEER'), 'seer');
+
+    const view = toMvpPrivateTurnView(state, rules);
+
+    expect(view).toMatchObject({ mode: 'DECOY', roleId: 'SEER' });
+    expect(view?.privateContext?.cursedPlayers).toEqual([
+      { displayName: 'Seer', playerId: 'seer', seatIndex: 0 },
+    ]);
+    expect(view?.validTargets).toBeUndefined();
+  });
+
   it('removes targets and resources from a DECOY turn', () => {
     const view = toMvpPrivateTurnView(
       createNightTestState('WITCH', 'DECOY'),
@@ -42,6 +57,22 @@ describe('MVP private night projection', () => {
 
     expect(view).toMatchObject({ mode: 'DECOY', roleId: 'WITCH' });
     expect(view?.privateContext).toBeUndefined();
+    expect(view?.validTargets).toBeUndefined();
+  });
+
+  it('does not reveal the Werewolf victim or potions to a cursed Witch', () => {
+    const state = markTestPlayerCursed(createNightTestState('WITCH'), 'witch');
+    state.nightContext!.werewolfAttackTargetId = 'villager';
+
+    const view = toMvpPrivateTurnView(state, rules);
+
+    expect(view).toMatchObject({ mode: 'DECOY', roleId: 'WITCH' });
+    expect(view?.privateContext?.cursedPlayers).toEqual([
+      { displayName: 'Witch', playerId: 'witch', seatIndex: 5 },
+    ]);
+    expect(view?.privateContext?.werewolfVictim).toBeUndefined();
+    expect(view?.privateContext?.healPotionRemaining).toBeUndefined();
+    expect(view?.privateContext?.poisonPotionRemaining).toBeUndefined();
     expect(view?.validTargets).toBeUndefined();
   });
 

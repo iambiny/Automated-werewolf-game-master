@@ -141,13 +141,14 @@ describe('Demon Wolf mechanics', () => {
     if (!resolution.ok) throw new Error(resolution.error.message);
     expect(resolution.state.players.villager?.lifeState).toBe('ALIVE');
     expect(resolution.state.roleAssignments.villager).toMatchObject({
-      currentRoleId: 'WEREWOLF',
+      currentRoleId: 'VILLAGER',
       originalRoleId: 'VILLAGER',
       teamId: 'WEREWOLF',
     });
     expect(resolution.state.roleState['demon-wolf']?.data.curseAvailable).toBe(
       false,
     );
+    expect(resolution.state.roleState.villager?.data.cursed).toBe(true);
     expect(resolution.state.nightContext?.resolution).toMatchObject({
       curseOutcome: 'SUCCEEDED',
       deaths: [],

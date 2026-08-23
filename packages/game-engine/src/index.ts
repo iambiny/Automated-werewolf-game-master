@@ -68,6 +68,7 @@ export type {
 } from './domain/role-definition';
 export type { DomainEvent, VoteResolution } from './events/domain-event';
 export { createMatch } from './engine/create-match';
+export { isPlayerCursed } from './engine/curse';
 export { announcePendingDeaths, startNextNight } from './engine/day-flow';
 export type {
   CreateMatchInput,
@@ -112,6 +113,7 @@ export {
 export type { SubmitWerewolfAttackInput } from './engine/werewolf';
 export { declareWinner, evaluateWinner } from './engine/winner';
 export {
+  appointMayorSuccessor,
   castVote,
   getVoteWeight,
   resolveVote,

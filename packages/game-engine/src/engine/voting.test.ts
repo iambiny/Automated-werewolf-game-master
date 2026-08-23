@@ -3,11 +3,14 @@ import { describe, expect, it } from 'vitest';
 import type { EngineResult, MatchState, VoteResolutionRules } from '../index';
 import {
   createNightTestState,
+  markTestPlayerCursed,
   markTestPlayerDead,
 } from '../testing/night-state';
 import { createFoolExecutionInterceptor, FOOL_NO_VOTE_FLAG } from './fool';
 import { transitionPhase } from './phase-engine';
+import { declareWinner, evaluateWinner } from './winner';
 import {
+  appointMayorSuccessor,
   castVote,
   resolveVote,
   startDayExecutionVote,
@@ -55,7 +58,7 @@ function keepOnly(state: MatchState, livingPlayerIds: string[]): MatchState {
 
 function castBallots(
   state: MatchState,
-  ballots: Array<{ targetPlayerId: string; voterId: string }>,
+  ballots: Array<{ targetPlayerId: string | null; voterId: string }>,
 ): MatchState {
   return ballots.reduce(
     (current, ballot) => success(castVote(current, ballot)),
@@ -100,6 +103,90 @@ describe('Mayor and voting mechanics', () => {
       error: { code: 'ACTION_NOT_AVAILABLE' },
       ok: false,
     });
+  });
+
+  it('randomly elects a Mayor when every voter skips', () => {
+    let state = createNightTestState('SEER');
+    state = {
+      ...state,
+      phase: { dayNumber: 1, subphase: 'MAYOR_ELECTION', type: 'MORNING' },
+      phaseId: 'morning-1-mayor',
+    };
+    state = success(startMayorElection(state, mayorRules));
+    const voters = state.votingContext?.eligibleVoterIds ?? [];
+    const targets = state.votingContext?.eligibleTargetIds ?? [];
+    state = castBallots(
+      state,
+      voters.map((voterId) => ({ targetPlayerId: null, voterId })),
+    );
+    state = success(resolveVote(state, { ...votingRules, random: () => 0.5 }));
+
+    expect(state.publicOffice).toEqual({
+      mayorElectionCompleted: true,
+      mayorPlayerId: targets[Math.floor(targets.length * 0.5)],
+    });
+    expect(
+      state.events.filter((event) => event.type === 'VOTE_SKIPPED'),
+    ).toHaveLength(voters.length);
+  });
+
+  it('does not let a voter replace a skipped ballot', () => {
+    let state = createNightTestState('SEER');
+    state = {
+      ...state,
+      phase: { dayNumber: 1, subphase: 'MAYOR_ELECTION', type: 'MORNING' },
+      phaseId: 'morning-1-mayor',
+    };
+    state = success(startMayorElection(state, mayorRules));
+    state = success(castVote(state, { targetPlayerId: null, voterId: 'seer' }));
+
+    expect(
+      castVote(state, { targetPlayerId: 'guard', voterId: 'seer' }),
+    ).toMatchObject({
+      error: { code: 'ALREADY_SUBMITTED' },
+      ok: false,
+    });
+  });
+
+  it('executes no one when every voter skips the day vote', () => {
+    let state = keepOnly(createNightTestState('SEER'), [
+      'seer',
+      'guard',
+      'villager',
+    ]);
+    state = {
+      ...state,
+      phase: { dayNumber: 1, round: 1, type: 'VOTING' },
+      phaseId: 'day-1-voting',
+    };
+    state = success(startDayExecutionVote(state));
+    const voters = state.votingContext?.eligibleVoterIds ?? [];
+    state = castBallots(
+      state,
+      voters.map((voterId) => ({ targetPlayerId: null, voterId })),
+    );
+    state = enterDayDeathResolution(state);
+    const resolution = resolveVote(state, votingRules);
+
+    expect(resolution.ok).toBe(true);
+    if (!resolution.ok) throw new Error(resolution.error.message);
+    expect(resolution.state.votingContext).toBeUndefined();
+    expect(
+      Object.values(resolution.state.players).filter(
+        (player) => player.lifeState === 'ALIVE',
+      ),
+    ).toHaveLength(3);
+    expect(resolution.events).toEqual([
+      {
+        result: {
+          tallies: expect.arrayContaining([
+            { targetPlayerId: 'seer', weightedVotes: 0 },
+          ]),
+          tiedPlayerIds: [],
+        },
+        type: 'VOTE_RESOLVED',
+      },
+    ]);
   });
 
   it('applies Mayor weight to a day execution ballot', () => {
@@ -185,6 +272,93 @@ describe('Mayor and voting mechanics', () => {
     expect(state.votingContext?.eligibleVoterIds).not.toContain('fool');
   });
 
+  it('declares the Fool the winner when that execution option is enabled', () => {
+    let state = keepOnly(createNightTestState('SEER'), [
+      'seer',
+      'villager',
+      'fool',
+    ]);
+    state = {
+      ...state,
+      phase: { dayNumber: 1, round: 1, type: 'VOTING' },
+      phaseId: 'day-1-voting',
+    };
+    state = success(startDayExecutionVote(state));
+    state = castBallots(
+      state,
+      ['seer', 'villager', 'fool'].map((voterId) => ({
+        targetPlayerId: 'fool',
+        voterId,
+      })),
+    );
+    state = enterDayDeathResolution(state);
+    state = success(
+      resolveVote(state, {
+        ...votingRules,
+        executionInterceptors: [
+          createFoolExecutionInterceptor({
+            executionBehavior: 'WINS_WHEN_EXECUTED',
+          }),
+        ],
+      }),
+    );
+
+    expect(state.players.fool?.lifeState).toBe('ALIVE');
+    expect(state.winner).toEqual({
+      playerId: 'fool',
+      reason: 'The Fool was selected for execution.',
+      teamId: 'FOOL',
+    });
+    expect(state.events).toContainEqual({
+      type: 'WINNER_DECLARED',
+      winner: state.winner,
+    });
+    expect(evaluateWinner(state, { werewolfCondition: 'PARITY' })).toEqual(
+      state.winner,
+    );
+    expect(declareWinner(state, { werewolfCondition: 'PARITY' })).toEqual({
+      events: [],
+      ok: true,
+      state,
+    });
+  });
+
+  it('executes a cursed Fool without applying its configured ability', () => {
+    let state = keepOnly(createNightTestState('SEER'), [
+      'seer',
+      'villager',
+      'fool',
+    ]);
+    state = markTestPlayerCursed(state, 'fool');
+    state = {
+      ...state,
+      phase: { dayNumber: 1, round: 1, type: 'VOTING' },
+      phaseId: 'day-1-voting',
+    };
+    state = success(startDayExecutionVote(state));
+    state = castBallots(
+      state,
+      ['seer', 'villager', 'fool'].map((voterId) => ({
+        targetPlayerId: 'fool',
+        voterId,
+      })),
+    );
+    state = enterDayDeathResolution(state);
+    state = success(
+      resolveVote(state, {
+        ...votingRules,
+        executionInterceptors: [
+          createFoolExecutionInterceptor({
+            executionBehavior: 'WINS_WHEN_EXECUTED',
+          }),
+        ],
+      }),
+    );
+
+    expect(state.players.fool?.lifeState).toBe('DEAD');
+    expect(state.winner).toBeUndefined();
+  });
+
   it('creates a constrained revote and returns to the voting phase legally', () => {
     let state = keepOnly(createNightTestState('SEER'), [
       'seer',
@@ -248,7 +422,7 @@ describe('Mayor and voting mechanics', () => {
     });
   });
 
-  it('vacates the public Mayor office when its holder dies', () => {
+  it('appoints a living successor when the Mayor dies', () => {
     let state = keepOnly(createNightTestState('SEER'), [
       'seer',
       'guard',
@@ -278,6 +452,16 @@ describe('Mayor and voting mechanics', () => {
     expect(state.events).toContainEqual({
       playerId: 'seer',
       type: 'MAYOR_VACATED',
+    });
+
+    state = success(appointMayorSuccessor(state, 'guard'));
+    expect(state.publicOffice).toEqual({
+      mayorElectionCompleted: true,
+      mayorPlayerId: 'guard',
+    });
+    expect(state.events).toContainEqual({
+      playerId: 'guard',
+      type: 'MAYOR_SUCCESSOR_APPOINTED',
     });
   });
 });

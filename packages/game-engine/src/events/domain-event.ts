@@ -29,6 +29,7 @@ export type DomainEvent =
     }
   | { type: 'DEATHS_ANNOUNCED'; playerIds: PlayerId[] }
   | { type: 'VOTE_CAST'; voterId: PlayerId; targetPlayerId: PlayerId }
+  | { type: 'VOTE_SKIPPED'; voterId: PlayerId }
   | { type: 'VOTE_RESOLVED'; result: VoteResolution }
   | { type: 'PLAYER_CURSED'; playerId: PlayerId }
   | { type: 'DEMON_WOLF_CURSE_CONSUMED'; playerId: PlayerId }
@@ -39,6 +40,7 @@ export type DomainEvent =
     }
   | { type: 'MAYOR_ELECTED'; playerId: PlayerId }
   | { type: 'MAYOR_VACATED'; playerId: PlayerId }
+  | { type: 'MAYOR_SUCCESSOR_APPOINTED'; playerId: PlayerId }
   | { type: 'EXECUTION_INTERCEPTED'; playerId: PlayerId; roleId: RoleId }
   | { type: 'WINNER_DECLARED'; winner: WinnerResult };
 

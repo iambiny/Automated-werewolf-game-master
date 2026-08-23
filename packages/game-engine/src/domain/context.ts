@@ -29,14 +29,20 @@ export interface NightContext {
 }
 
 export interface VotingContext {
-  ballots: Record<PlayerId, PlayerId>;
+  ballots: Record<PlayerId, PlayerId | null>;
   eligibleTargetIds: PlayerId[];
   eligibleVoterIds: PlayerId[];
   round: number;
   type: 'MAYOR_ELECTION' | 'DAY_EXECUTION';
 }
 
-export interface WinnerResult {
-  reason: string;
-  teamId: 'VILLAGE' | 'WEREWOLF';
-}
+export type WinnerResult =
+  | {
+      reason: string;
+      teamId: 'VILLAGE' | 'WEREWOLF';
+    }
+  | {
+      playerId: PlayerId;
+      reason: string;
+      teamId: 'FOOL';
+    };

@@ -231,8 +231,15 @@ const pageCopy: Record<string, string> = {
     'Chưa xác định bên thắng cho đến khi mọi phát bắn của Thợ Săn được xử lý.',
   'Open vote · Moderator records': 'Bỏ phiếu công khai · Quản trò ghi nhận',
   'Recording ballot for': 'Đang ghi phiếu của',
+  'Skip mayor vote': 'Bỏ qua phiếu bầu Trưởng Làng',
+  'Vote to hang no one': 'Bỏ phiếu không treo cổ ai',
   'Mayor ballot counts ×2': 'Phiếu của Trưởng Làng được tính ×2',
   'Public office elected': 'Đã bầu chức vụ công khai',
+  'Mayor succession': 'Kế nhiệm Trưởng Làng',
+  'Choose the next Mayor': 'Chọn Trưởng Làng tiếp theo',
+  'The former Mayor has died. Give the seat to a living player.':
+    'Trưởng Làng trước đã chết. Hãy trao chức vụ cho một người chơi còn sống.',
+  'Give the seat to': 'Trao chức vụ cho',
   "The Mayor's execution ballot counts ×2 while they hold office.":
     'Phiếu xử tử của Trưởng Làng được tính ×2 khi còn giữ chức.',
   'The village has the floor.': 'Ngôi làng đang thảo luận.',
@@ -259,6 +266,7 @@ const pageCopy: Record<string, string> = {
   'Confirm poison': 'Xác nhận dùng độc',
   'Werewolf aligned': 'Thuộc phe Ma Sói',
   'Village aligned': 'Thuộc phe Dân Làng',
+  'Unclear role': 'Không rõ phe',
   Unknown: 'Không rõ',
   'This result disappears as soon as you continue.':
     'Kết quả này sẽ biến mất ngay khi bạn tiếp tục.',
@@ -283,6 +291,9 @@ const pageCopy: Record<string, string> = {
   'The engine will apply vote eligibility, Mayor weight, and tie rules.':
     'Hệ thống sẽ áp dụng điều kiện bỏ phiếu, trọng số của Trưởng Làng và luật hòa phiếu.',
   'Resolve the vote': 'Xử lý kết quả bỏ phiếu',
+  ', you were cursed by the Demon Wolf.': ', bạn đã bị Sói Quỷ nguyền rủa.',
+  'Your role ability is disabled. Wake with the Werewolves from now on; your new alignment is Werewolf.':
+    'Khả năng của vai trò này đã bị vô hiệu hóa. Từ bây giờ, hãy thức dậy cùng Ma Sói; phe mới của bạn là Ma Sói.',
   'Begin discussion': 'Bắt đầu thảo luận',
   'Village execution vote': 'Bỏ phiếu xử tử của làng',
   'The vote is tied. Only the tied players remain eligible.':
@@ -291,7 +302,11 @@ const pageCopy: Record<string, string> = {
     'Phiếu bầu hòa. Chỉ những người chơi hòa phiếu còn đủ điều kiện cho vòng bỏ phiếu lại.',
   'Werewolf-aligned players reached parity with the opposition.':
     'Phe Ma Sói đã đạt thế cân bằng với phe đối lập.',
+  'The Fool was selected for execution.': 'Kẻ Ngốc đã bị chọn để xử tử.',
   'Test sound again': 'Thử âm thanh lại',
+  'Survives, loses vote': 'Sống sót, mất quyền bỏ phiếu',
+  'Wins when executed': 'Thắng khi bị treo cổ',
+  'Dies normally': 'Chết bình thường',
 };
 
 const pageCopyReverse = Object.fromEntries(
@@ -380,7 +395,8 @@ function translatePattern(value: string, locale: SupportedLocale): string {
       .replace(/^(.+) count$/, 'Số lượng $1')
       .replace(/^(.+) sec$/, '$1 giây')
       .replace(/^(\d+) left$/, 'Còn $1')
-      .replace(/^(.+) was attacked\.$/, '$1 đã bị tấn công.');
+      .replace(/^(.+) was attacked\.$/, '$1 đã bị tấn công.')
+      .replace(/^(.+) wins\.$/, '$1 chiến thắng.');
   }
   return value
     .replace(/^Đêm (\d+)$/, 'Night $1')
@@ -398,7 +414,8 @@ function translatePattern(value: string, locale: SupportedLocale): string {
     .replace(/^Số lượng (.+)$/, '$1 count')
     .replace(/^(.+) giây$/, '$1 sec')
     .replace(/^Còn (\d+)$/, '$1 left')
-    .replace(/^(.+) đã bị tấn công\.$/, '$1 was attacked.');
+    .replace(/^(.+) đã bị tấn công\.$/, '$1 was attacked.')
+    .replace(/^(.+) chiến thắng\.$/, '$1 wins.');
 }
 
 export function isSupportedLocale(value: unknown): value is SupportedLocale {
