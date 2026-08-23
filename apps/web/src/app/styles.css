@@ -139,6 +139,16 @@ input:focus-visible {
   accent-color: var(--gold);
   width: 100%;
 }
+.audio-settings label.audio-toggle {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+.audio-toggle input[type='checkbox'] {
+  accent-color: var(--gold);
+  height: 1.2rem;
+  width: 1.2rem;
+}
 .panel-enter {
   animation: enter 360ms cubic-bezier(0.22, 0.8, 0.3, 1) both;
 }

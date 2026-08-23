@@ -12,7 +12,11 @@ import { MVP_ROLE_IDS, type MvpRoleId } from '@werewolf/role-catalog';
 import { IndexedDbMatchRepository } from '../../adapters/persistence/indexeddb-match-repository';
 import {
   BrowserAudioService,
-  type AudioKey,
+  roleNarrationCues,
+  type AudioCue,
+  type EffectKey,
+  type MusicKey,
+  type NightRoleId,
 } from '../../adapters/audio/browser-audio-service';
 import {
   createDeadlineTimer,
@@ -128,6 +132,9 @@ export function GameApp() {
   );
   const [narrationVolume, setNarrationVolume] = useState(0.85);
   const [effectsVolume, setEffectsVolume] = useState(0.7);
+  const [nightActionEffectsEnabled, setNightActionEffectsEnabled] =
+    useState(true);
+  const [musicVolume, setMusicVolume] = useState(0.38);
   const [locale, setLocale] = useState<SupportedLocale>(DEFAULT_LOCALE);
   const [recoveryIssue, setRecoveryIssue] = useState<string | null>(null);
   const [discussionTimer, setDiscussionTimer] =
@@ -151,8 +158,17 @@ export function GameApp() {
     setLocale(loadLocalePreference());
     setNarrationVolume(audioPreferences.narration);
     setEffectsVolume(audioPreferences.effects);
+    setNightActionEffectsEnabled(audioPreferences.nightActions);
+    setMusicVolume(audioPreferences.music);
     audioRef.current.setNarrationVolume(audioPreferences.narration);
     audioRef.current.setEffectsVolume(audioPreferences.effects);
+    audioRef.current.setMusicVolume(audioPreferences.music);
+    const playButtonBeep = (event: MouseEvent) => {
+      if (!(event.target instanceof Element) || !event.target.closest('button'))
+        return;
+      void audioRef.current?.playInterfaceBeep().catch(() => undefined);
+    };
+    document.addEventListener('click', playButtonBeep);
     void registerServiceWorker();
     const repository = new IndexedDbMatchRepository();
     const controller = new GameController({
@@ -201,6 +217,7 @@ export function GameApp() {
 
     return () => {
       active = false;
+      document.removeEventListener('click', playButtonBeep);
       repository.close();
       audioRef.current?.stopAll();
       audioRef.current = null;
@@ -218,11 +235,18 @@ export function GameApp() {
 
   useEffect(() => {
     const audio = audioRef.current;
-    const key = audioKeyForScreen(screen);
-    if (!audio || !key || audioStatus !== 'READY') return;
-    audio.stopAll();
-    void audio.play(key).catch(() => setAudioStatus('FAILED'));
-  }, [audioStatus, privateTurn?.roleId, screen]);
+    const cue = audioCueForScreen(screen, locale, privateTurn?.roleId);
+    if (!audio || !cue || audioStatus !== 'READY') return;
+    void audio.play(cue).catch(() => setAudioStatus('FAILED'));
+  }, [audioStatus, locale, privateTurn?.roleId, screen]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || audioStatus !== 'READY') return;
+    void audio
+      .setBackgroundMusic(musicKeyForScreen(screen))
+      .catch(() => setAudioStatus('FAILED'));
+  }, [audioStatus, screen]);
 
   function beginNewGame() {
     if (resumeView && resumeView.phase.type !== 'GAME_OVER') {
@@ -249,30 +273,54 @@ export function GameApp() {
     try {
       await audio.unlock();
       await audio.preload([
-        'NIGHT_START',
-        'ROLE_WAKE',
-        'ROLE_SLEEP',
-        'DAWN',
-        'DISCUSSION_START',
-        'VOTE_START',
-        'GAME_OVER',
+        ...phaseNarrationCues(locale),
+        ...roleNarrationCues(locale, NIGHT_AUDIO_ROLES),
+        ...ACTION_EFFECTS.map((key): AudioCue => ({ key, kind: 'EFFECT' })),
       ]);
+      await audio.play({ key: 'TEST_SOUND', kind: 'NARRATION', locale });
       setAudioStatus('READY');
     } catch {
       setAudioStatus('FAILED');
     }
   }
 
-  function changeAudioVolume(channel: 'narration' | 'effects', value: number) {
+  function changeAudioVolume(
+    channel: 'narration' | 'effects' | 'music',
+    value: number,
+  ) {
     if (channel === 'narration') {
       setNarrationVolume(value);
       audioRef.current?.setNarrationVolume(value);
-      saveAudioPreferences(value, effectsVolume);
-    } else {
+      saveAudioPreferences(
+        value,
+        effectsVolume,
+        musicVolume,
+        nightActionEffectsEnabled,
+      );
+    } else if (channel === 'effects') {
       setEffectsVolume(value);
       audioRef.current?.setEffectsVolume(value);
-      saveAudioPreferences(narrationVolume, value);
+      saveAudioPreferences(
+        narrationVolume,
+        value,
+        musicVolume,
+        nightActionEffectsEnabled,
+      );
+    } else {
+      setMusicVolume(value);
+      audioRef.current?.setMusicVolume(value);
+      saveAudioPreferences(
+        narrationVolume,
+        effectsVolume,
+        value,
+        nightActionEffectsEnabled,
+      );
     }
+  }
+
+  function changeNightActionEffects(enabled: boolean) {
+    setNightActionEffectsEnabled(enabled);
+    saveAudioPreferences(narrationVolume, effectsVolume, musicVolume, enabled);
   }
 
   function changeLocale(value: SupportedLocale) {
@@ -554,6 +602,11 @@ export function GameApp() {
     setBusy(false);
     if (!result.ok) return setNightError(result.error.message);
 
+    const actionEffect = effectForNightAction(privateTurn.roleId, action);
+    if (actionEffect && nightActionEffectsEnabled) {
+      playEffect(audioRef.current, actionEffect);
+    }
+
     const nextPrivate = controller.getPrivateTurnView();
     setPrivateTurn(nextPrivate);
     if (privateTurn.roleId === 'SEER' && action !== 'PASS') {
@@ -684,6 +737,7 @@ export function GameApp() {
     });
     setBusy(false);
     if (!announced.ok) return setError(announced.error.message);
+    playEffect(audioRef.current, 'HUNTER_SHOT');
     setResumeView(controller.getPublicView());
     setScreen('HUNTER_OUTCOME');
   }
@@ -1017,11 +1071,14 @@ export function GameApp() {
           <SettingsInfo
             audioStatus={audioStatus}
             effectsVolume={effectsVolume}
-            narrationVolume={narrationVolume}
             locale={locale}
+            musicVolume={musicVolume}
+            narrationVolume={narrationVolume}
+            nightActionEffectsEnabled={nightActionEffectsEnabled}
             onBack={() => setScreen('HOME')}
             onChangeVolume={changeAudioVolume}
             onChangeLocale={changeLocale}
+            onNightActionEffectsChange={changeNightActionEffects}
             onTestSound={() => void testSound()}
           />
         )}
@@ -2656,20 +2713,29 @@ function GameOverScreen({
 function SettingsInfo({
   audioStatus,
   effectsVolume,
+  musicVolume,
   narrationVolume,
+  nightActionEffectsEnabled,
   locale,
   onBack,
   onChangeLocale,
   onChangeVolume,
+  onNightActionEffectsChange,
   onTestSound,
 }: {
   audioStatus: 'LOCKED' | 'READY' | 'FAILED';
   effectsVolume: number;
+  musicVolume: number;
   narrationVolume: number;
+  nightActionEffectsEnabled: boolean;
   locale: SupportedLocale;
   onBack: () => void;
   onChangeLocale: (locale: SupportedLocale) => void;
-  onChangeVolume: (channel: 'narration' | 'effects', value: number) => void;
+  onChangeVolume: (
+    channel: 'narration' | 'effects' | 'music',
+    value: number,
+  ) => void;
+  onNightActionEffectsChange: (enabled: boolean) => void;
   onTestSound: () => void;
 }) {
   return (
@@ -2731,6 +2797,31 @@ function SettingsInfo({
             step="0.05"
             type="range"
             value={effectsVolume}
+          />
+        </label>
+        <label className="audio-toggle">
+          <span>Night action sound effects</span>
+          <input
+            aria-label="Night action sound effects"
+            checked={nightActionEffectsEnabled}
+            onChange={(event) =>
+              onNightActionEffectsChange(event.target.checked)
+            }
+            type="checkbox"
+          />
+        </label>
+        <label>
+          <span>Background music volume</span>
+          <input
+            aria-label="Background music volume"
+            max="1"
+            min="0"
+            onChange={(event) =>
+              onChangeVolume('music', Number(event.target.value))
+            }
+            step="0.05"
+            type="range"
+            value={musicVolume}
           />
         </label>
         <button className="button button-secondary" onClick={onTestSound}>
@@ -3056,26 +3147,120 @@ function discussionTimerKey(view: PublicGameView): string {
   return `${view.matchId}:discussion:${view.cycle}`;
 }
 
-function audioKeyForScreen(screen: Screen): AudioKey | null {
+const NIGHT_AUDIO_ROLES: readonly NightRoleId[] = [
+  'SEER',
+  'GUARD',
+  'WEREWOLF',
+  'DEMON_WOLF',
+  'WITCH',
+];
+const ACTION_EFFECTS: readonly EffectKey[] = [
+  'DEMON_CURSE',
+  'GUARD_SHIELD',
+  'HUNTER_SHOT',
+  'SEER_VISION',
+  'WEREWOLF_BITE',
+  'WITCH_HEAL',
+  'WITCH_POISON',
+];
+
+function phaseNarrationCues(locale: SupportedLocale): AudioCue[] {
+  return (
+    [
+      'DAWN',
+      'DISCUSSION_START',
+      'GAME_OVER',
+      'HUNTER_ACTION',
+      'MAYOR_VOTE_START',
+      'NIGHT_START',
+      'TEST_SOUND',
+      'VOTE_START',
+    ] as const
+  ).map((key) => ({ key, kind: 'NARRATION', locale }));
+}
+
+function audioCueForScreen(
+  screen: Screen,
+  locale: SupportedLocale,
+  roleId?: string,
+): AudioCue | null {
+  if (
+    (screen === 'NIGHT_WAKE' ||
+      screen === 'NIGHT_TURN' ||
+      screen === 'NIGHT_SLEEP') &&
+    NIGHT_AUDIO_ROLES.includes(roleId as NightRoleId)
+  ) {
+    return {
+      kind: 'ROLE_NARRATION',
+      locale,
+      roleId: roleId as NightRoleId,
+      stage:
+        screen === 'NIGHT_WAKE'
+          ? 'WAKE'
+          : screen === 'NIGHT_TURN'
+            ? 'ACTION'
+            : 'SLEEP',
+    };
+  }
   switch (screen) {
     case 'NIGHT_READY':
-      return 'NIGHT_START';
-    case 'NIGHT_WAKE':
-      return 'ROLE_WAKE';
-    case 'NIGHT_SLEEP':
-      return 'ROLE_SLEEP';
+      return { key: 'NIGHT_START', kind: 'NARRATION', locale };
     case 'DAWN':
-      return 'DAWN';
+      return { key: 'DAWN', kind: 'NARRATION', locale };
     case 'DISCUSSION':
-      return 'DISCUSSION_START';
+      return { key: 'DISCUSSION_START', kind: 'NARRATION', locale };
+    case 'HUNTER':
+      return { key: 'HUNTER_ACTION', kind: 'NARRATION', locale };
     case 'DAY_VOTE':
+      return { key: 'VOTE_START', kind: 'NARRATION', locale };
     case 'MAYOR_VOTE':
-      return 'VOTE_START';
+      return { key: 'MAYOR_VOTE_START', kind: 'NARRATION', locale };
     case 'GAME_OVER':
-      return 'GAME_OVER';
+      return { key: 'GAME_OVER', kind: 'NARRATION', locale };
     default:
       return null;
   }
+}
+
+function musicKeyForScreen(screen: Screen): MusicKey | null {
+  if (screen.startsWith('NIGHT_')) return 'NIGHT';
+  if (
+    screen === 'DAY_VOTE' ||
+    screen === 'MAYOR_VOTE' ||
+    screen === 'VOTE_OUTCOME'
+  ) {
+    return 'VOTE';
+  }
+  if (
+    [
+      'DAWN',
+      'MORNING_OUTCOME',
+      'HUNTER',
+      'HUNTER_OUTCOME',
+      'MAYOR_RESULT',
+      'DISCUSSION',
+    ].includes(screen)
+  ) {
+    return 'DAY';
+  }
+  return null;
+}
+
+function effectForNightAction(
+  roleId: string,
+  action: 'TARGET' | 'SKIP' | 'CURSE' | 'HEAL' | 'POISON' | 'PASS',
+): EffectKey | null {
+  if (roleId === 'SEER' && action === 'TARGET') return 'SEER_VISION';
+  if (roleId === 'GUARD' && action === 'TARGET') return 'GUARD_SHIELD';
+  if (roleId === 'WEREWOLF' && action === 'TARGET') return 'WEREWOLF_BITE';
+  if (roleId === 'DEMON_WOLF' && action === 'CURSE') return 'DEMON_CURSE';
+  if (roleId === 'WITCH' && action === 'HEAL') return 'WITCH_HEAL';
+  if (roleId === 'WITCH' && action === 'POISON') return 'WITCH_POISON';
+  return null;
+}
+
+function playEffect(audio: BrowserAudioService | null, key: EffectKey): void {
+  void audio?.play({ key, kind: 'EFFECT' }).catch(() => undefined);
 }
 
 const AUDIO_PREFERENCES_KEY = 'werewolf-audio-preferences-v1';
@@ -3098,7 +3283,12 @@ function saveLocalePreference(locale: SupportedLocale): void {
   }
 }
 
-function loadAudioPreferences(): { effects: number; narration: number } {
+function loadAudioPreferences(): {
+  effects: number;
+  music: number;
+  narration: number;
+  nightActions: boolean;
+} {
   try {
     const value = JSON.parse(
       localStorage.getItem(AUDIO_PREFERENCES_KEY) ?? 'null',
@@ -3111,21 +3301,34 @@ function loadAudioPreferences(): { effects: number; narration: number } {
       ) {
         return {
           effects: Math.max(0, Math.min(1, record.effects)),
+          music:
+            typeof record.music === 'number'
+              ? Math.max(0, Math.min(1, record.music))
+              : 0.38,
           narration: Math.max(0, Math.min(1, record.narration)),
+          nightActions:
+            typeof record.nightActions === 'boolean'
+              ? record.nightActions
+              : true,
         };
       }
     }
   } catch {
     // Corrupt preferences never prevent the game from loading.
   }
-  return { effects: 0.7, narration: 0.85 };
+  return { effects: 0.7, music: 0.38, narration: 0.85, nightActions: true };
 }
 
-function saveAudioPreferences(narration: number, effects: number): void {
+function saveAudioPreferences(
+  narration: number,
+  effects: number,
+  music: number,
+  nightActions: boolean,
+): void {
   try {
     localStorage.setItem(
       AUDIO_PREFERENCES_KEY,
-      JSON.stringify({ effects, narration }),
+      JSON.stringify({ effects, music, narration, nightActions }),
     );
   } catch {
     // Preferences are optional; active match state remains in IndexedDB.

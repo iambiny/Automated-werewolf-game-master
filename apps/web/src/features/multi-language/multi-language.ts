@@ -73,6 +73,7 @@ const pageCopy: Record<string, string> = {
   Continue: 'Tiếp tục',
   'Day discussion': 'Thảo luận ban ngày',
   'Effects volume': 'Âm lượng hiệu ứng',
+  'Background music volume': 'Âm lượng nhạc nền',
   'End discussion and vote': 'Kết thúc thảo luận và bỏ phiếu',
   'Everyone is ready': 'Mọi người đã sẵn sàng',
   'Execution result': 'Kết quả xử tử',
@@ -87,6 +88,7 @@ const pageCopy: Record<string, string> = {
   'Match your physical card': 'Đối chiếu lá bài vật lý của bạn',
   'Morning announcement': 'Thông báo buổi sáng',
   'Narration volume': 'Âm lượng lời dẫn',
+  'Night action sound effects': 'Hiệu ứng âm thanh hành động ban đêm',
   'No target': 'Không có mục tiêu',
   'No outcome was guessed and no private information was displayed.':
     'Không có kết quả nào bị phỏng đoán và không có thông tin riêng tư nào được hiển thị.',

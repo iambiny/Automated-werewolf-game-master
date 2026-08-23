@@ -16,6 +16,26 @@ afterEach(() => {
 });
 
 describe('GameApp setup journey', () => {
+  it('persists the night action sound-effects preference', async () => {
+    const user = userEvent.setup();
+    render(<GameApp />);
+
+    await user.click(await screen.findByRole('button', { name: 'Settings' }));
+    const toggle = screen.getByRole('checkbox', {
+      name: 'Night action sound effects',
+    });
+    expect(toggle).toBeChecked();
+
+    await user.click(toggle);
+
+    expect(toggle).not.toBeChecked();
+    expect(
+      JSON.parse(
+        localStorage.getItem('werewolf-audio-preferences-v1') ?? 'null',
+      ),
+    ).toMatchObject({ nightActions: false });
+  });
+
   it('localizes settings and home before continuing navigation', async () => {
     const user = userEvent.setup();
     render(<GameApp />);
