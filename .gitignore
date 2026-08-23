@@ -3,6 +3,7 @@
 !.env.example
 
 node_modules/
+.venv-voice/
 .next/
 out/
 dist/

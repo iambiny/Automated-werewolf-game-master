@@ -110,7 +110,10 @@ interface RoleAssignment {
 
 `currentRoleId` supports future transformations.
 
-For MVP Demon Wolf, after curse success the player may keep `currentRoleId = DEMON_WOLF` while `curseAvailable = false`; gameplay capability becomes equivalent to ordinary Werewolf.
+For MVP Demon Wolf, after curse success the player keeps their functional
+`currentRoleId`, changes to `teamId = WEREWOLF`, and joins the shared attack.
+The player receives a private notification and wakes with Werewolves while
+retaining their functional action.
 
 ---
 
@@ -527,14 +530,15 @@ function applyDemonWolfCurse(
 
 The target becomes wolf-aligned according to MVP rules.
 
-Recommended:
+MVP behavior:
 
 ```ts
 roleAssignments[target].teamId = 'WEREWOLF';
-roleAssignments[target].currentRoleId = 'WEREWOLF';
+// Preserve the functional currentRoleId and originalRoleId.
 ```
 
-If the product later requires preserving original role identity while changing faction, this should become a configurable transformation policy.
+The converted player receives a private role-turn notice and joins the shared
+Werewolf attack group while retaining their functional role turn.
 
 Curse success must remain private.
 
@@ -628,6 +632,11 @@ function getVoteWeight(
 
 Mayor election itself uses one vote per eligible voter unless separately configured.
 
+When the elected Mayor dies, the engine clears the office, emits a vacancy
+event, and requires a living successor appointment before the game continues.
+The successor is recorded as a public office holder and receives the normal
+Mayor execution-vote weight.
+
 ---
 
 # 23. Voting Context
@@ -640,8 +649,12 @@ interface VotingContext {
   eligibleVoterIds: PlayerId[];
   eligibleTargetIds: PlayerId[];
 
-  ballots: Record<PlayerId, PlayerId>;
+  ballots: Record<PlayerId, PlayerId | null>;
 }
+
+`null` represents a submitted skip/abstention. If all ballots are `null`, a
+Mayor election randomly appoints a living eligible player and an execution
+vote resolves with no elimination.
 ```
 
 Resolution:

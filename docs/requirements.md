@@ -496,6 +496,9 @@ Investigation result must be configurable as:
 - alignment/team only;
 - role-specific deception rules.
 
+For the MVP team-only mode, a Fool is a neutral third alignment. The Seer
+must receive `Unclear role` for a Fool rather than `Village aligned`.
+
 ## 9.9 Witch action
 
 Witch behavior must be fully rule-configurable because common rules differ.
@@ -726,6 +729,11 @@ By default, only living players are valid execution targets.
 
 Self-voting is configurable.
 
+Each eligible voter must be able to skip/abstain. A skipped ballot counts as
+submitted but contributes no votes. If every voter skips a Mayor election, the
+engine selects one living eligible player at random. If every voter skips an
+execution vote, no player is executed.
+
 ## 13.4 Tie policies
 
 Must be configurable.
@@ -769,7 +777,8 @@ Baseline teams:
 
 - `VILLAGE`;
 - `WEREWOLF`;
-- `NEUTRAL` / role-specific teams.
+- `FOOL` (neutral third alignment);
+- other `NEUTRAL` / role-specific teams.
 
 ## 14.2 Baseline Village win
 
@@ -866,6 +875,13 @@ Recommended MVP core:
 
 6. **Hunter**
    - death-triggered shot where allowed by rules.
+
+7. **Fool**
+   - neutral third alignment;
+   - no night action;
+   - configurable execution behavior: die normally, survive the first
+     execution and lose the vote, or win immediately when selected;
+   - does not count as Village opposition for Werewolf parity.
 
 These six exercise the engine across passive, group action, information, protection, consumables, and death-trigger behavior.
 
@@ -2100,7 +2116,10 @@ Domain requirements:
 - Default vote weight: 1.
 - Village Chief vote weight: 2.
 - The office must not change the player's hidden role/team.
-- If the Village Chief dies, the office becomes vacant unless a future rule explicitly adds inheritance/succession.
+- If the Village Chief dies, the game must pause and appoint a living successor
+  before continuing. The successor receives the public office and its vote
+  weight; the office must never remain unintentionally vacant after a resolved
+  Mayor death.
 
 Suggested model:
 
@@ -2155,7 +2174,16 @@ type DemonWolfAction = {
 };
 ```
 
-The exact semantic transformation caused by `CURSE` (for example faction conversion, role conversion, whether the Werewolf victim is the only eligible target, and whether the ability is one-time or reusable) must be explicitly finalized in the MVP rules catalog before implementation. The phase engine only needs to support the generic private turn/action/effect mechanism.
+On successful `CURSE`, the target keeps their functional/current role and
+original role history, changes to Werewolf alignment, joins the shared
+Werewolf attack, and receives a private notification that they must wake with
+the Werewolves on future nights. The target's original role ability is
+disabled for the remainder of the match: a cursed Seer cannot inspect, a
+cursed Guard cannot protect, a cursed Witch cannot see the victim or use
+potions, and a cursed Hunter cannot receive a revenge-shot trigger. The
+converted player is still eligible for the ordinary shared Werewolf action.
+The phase engine only needs to support the generic private turn/action/effect
+mechanism.
 
 ## 41.4 Revised MVP role/status catalog
 
@@ -2236,7 +2264,24 @@ type SeerInvestigationMode = 'TEAM' | 'ROLE';
 
 This setting belongs to the ruleset/config and must not require a UI or engine rewrite.
 
-## 42.3 Demon Wolf target restriction
+## 42.3 Fool alignment and execution rules
+
+The MVP Fool is assigned the neutral `FOOL` team, distinct from both Village
+and Werewolf. In `TEAM` investigation mode, Seer receives `Unclear role`
+(Vietnamese: `Không rõ phe`). Neutral Fool players are excluded from the
+Village side of Werewolf parity calculations.
+
+The Fool execution rule is a ruleset option with exactly these behaviors:
+
+- `DIES_NORMALLY`;
+- `SURVIVES_FIRST_EXECUTION_LOSES_VOTE`;
+- `WINS_WHEN_EXECUTED`.
+
+When `WINS_WHEN_EXECUTED` is selected and the Fool is the unique execution
+target, the Fool wins immediately and the normal death/Hunter-trigger chain is
+not started.
+
+## 42.4 Demon Wolf target restriction
 
 Demon Wolf does not choose an independent target.
 
@@ -2251,7 +2296,7 @@ type DemonWolfCurseDecision = {
 
 If the Werewolves select no attack target, Demon Wolf cannot successfully curse anyone that night.
 
-## 42.4 Curse resolution
+## 42.5 Curse resolution
 
 The curse is conditional on the Werewolf attack being effective after defensive resolution.
 
@@ -2279,7 +2324,7 @@ Werewolves attack Player A
 
 The cursed victim must not also be resolved as an ordinary Werewolf death when curse success replaces the attack outcome.
 
-## 42.5 Ability consumption semantics
+## 42.6 Ability consumption semantics
 
 Demon Wolf starts with:
 
@@ -2299,7 +2344,7 @@ only after `CURSE_SUCCESS` is produced during night resolution.
 
 If the curse is blocked/invalidated because the Werewolf victim is protected, the ability stays available for later nights.
 
-## 42.6 Post-success behavior
+## 42.7 Post-success behavior
 
 After the curse succeeds, Demon Wolf permanently loses the curse function and behaves as an ordinary Werewolf for the remainder of the match.
 
@@ -2319,13 +2364,13 @@ From gameplay perspective the player is equivalent to a normal Werewolf after cu
 
 The night queue MUST omit the separate Demon Wolf curse turn once no living Demon Wolf has `curseAvailable = true`.
 
-## 42.7 Hidden-information requirement
+## 42.8 Hidden-information requirement
 
 Curse success/failure and the victim's conversion must not be publicly announced unless another explicit rule exposes it.
 
 While the curse ability remains available, Demon Wolf is called after Werewolf each night. After successful consumption, the separate Demon Wolf turn is no longer needed.
 
-## 42.8 Resolution ordering consequence
+## 42.9 Resolution ordering consequence
 
 Demon Wolf requires conditional effects rather than immediate role mutation:
 
@@ -2408,7 +2453,23 @@ Dead Demon Wolf -> narrator still calls Demon Wolf -> DECOY
 
 No dead role can generate real gameplay effects unless an explicit death-trigger rule says otherwise.
 
-## 43.5 Queue generation consequence
+## 43.5 Cursed functional roles
+
+A successful Demon Wolf curse must be represented as explicit player state and
+must disable the converted player's original role ability. The role's
+narrator call may continue as a `DECOY` turn for privacy, but the turn must not
+expose targets, resources, or role results and no action may be accepted.
+
+Examples:
+
+```text
+Cursed Seer      -> Seer call remains DECOY -> no inspection
+Cursed Guard     -> Guard call remains DECOY -> no protection
+Cursed Witch     -> Witch call remains DECOY -> no victim/potions/action
+Cursed Hunter    -> no Hunter revenge trigger after eligible death
+```
+
+## 43.6 Queue generation consequence
 
 The queue generator must separate:
 
@@ -2423,7 +2484,7 @@ canPerformAction(role, matchState): boolean
 
 The main night loop must never use `canPerformAction()` alone to decide whether a role narrator turn exists.
 
-## 43.6 MVP default privacy policy
+## 43.7 MVP default privacy policy
 
 For the current MVP preset, functional night roles present in the original role composition continue to be narrated every applicable night even after death or ability exhaustion, using `DECOY` turns when no real action is possible.
 

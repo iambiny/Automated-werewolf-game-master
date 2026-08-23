@@ -136,7 +136,9 @@ Fool
 Demon Wolf
 ```
 
-If a player was successfully cursed and transformed into Werewolf, ROLE mode should show current role according to transformation policy; MVP recommendation: show `WEREWOLF`.
+If a player was successfully cursed, ROLE mode continues to show their
+functional current role while their team/alignment is `WEREWOLF`. They are
+privately told to retain that function and also wake with the Werewolves.
 
 ## Restrictions
 
@@ -573,17 +575,12 @@ Mayor identity is public.
 state.publicOffice.mayorPlayerId
 ```
 
-## Mayor death
+## Mayor death and succession
 
-Exact succession/removal rule must be represented in config.
-
-MVP may use:
-
-```text
-Mayor office becomes vacant on death
-```
-
-unless the group selects another basic rule.
+When the Mayor dies, the office is vacated immediately and the game pauses
+for a succession choice. The moderator selects one living player to receive
+the seat before discussion or the next night continues. The successor's
+identity is public and their daytime execution vote counts as 2.
 
 ---
 
@@ -602,7 +599,7 @@ target joins future shared Werewolf attacks
 Recommended MVP transform:
 
 ```ts
-currentRoleId = 'WEREWOLF'
+currentRoleId = original functional role
 teamId = 'WEREWOLF'
 ```
 
@@ -611,6 +608,10 @@ Original role may be preserved separately for game history if desired:
 ```ts
 originalRoleId
 ```
+
+The converted player is privately notified during their functional role turn
+that they are cursed, retain that function, and must also wake with the
+Werewolves.
 
 ## Seer interaction
 
@@ -833,4 +834,4 @@ The MVP catalog is implementation-ready when:
 - [ ] exact Fool execution rule value is chosen;
 - [ ] exact Guard rule values are set in preset;
 - [ ] exact Witch rule values are set in preset;
-- [ ] exact Mayor-on-death policy is selected.
+- [x] Mayor succession appoints a living replacement after the office holder dies.
