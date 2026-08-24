@@ -1,4 +1,4 @@
-import type { MatchState, PlayerId } from '@werewolf/game-engine';
+import type { MatchState, PlayerId, RoleId } from '@werewolf/game-engine';
 
 export interface RoleRegistrationPlayerView {
   displayName: string;
@@ -9,6 +9,7 @@ export interface RoleRegistrationPlayerView {
 export interface RoleRegistrationView {
   complete: boolean;
   currentPlayer: RoleRegistrationPlayerView | null;
+  preparedRoleIds: RoleId[];
   registeredCount: number;
   totalPlayers: number;
 }
@@ -34,6 +35,9 @@ export function toRoleRegistrationView(
           seatIndex: current.seatIndex,
         }
       : null,
+    preparedRoleIds: state.roleComposition
+      .filter((entry) => entry.count > 0)
+      .map((entry) => entry.roleId),
     registeredCount: Object.keys(state.roleAssignments).length,
     totalPlayers: players.length,
   };

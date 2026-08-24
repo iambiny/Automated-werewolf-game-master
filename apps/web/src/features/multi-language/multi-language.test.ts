@@ -17,6 +17,12 @@ describe('multi-language', () => {
     });
   });
 
+  it('translates deck-builder faction headings', () => {
+    expect(translateInterfaceText('vi', 'Villagers')).toBe('Phe Dân Làng');
+    expect(translateInterfaceText('vi', 'Werewolves')).toBe('Phe Ma Sói');
+    expect(translateInterfaceText('vi', 'Third Party')).toBe('Phe Thứ Ba');
+  });
+
   it('translates player-facing narration and phase labels', () => {
     expect(translateNightPrompt('vi', 'GUARD')).toBe(
       'Đêm nay bạn sẽ bảo vệ ai?',
@@ -47,6 +53,31 @@ describe('multi-language', () => {
     );
   });
 
+  it('translates automatic night-transition copy and countdown values', () => {
+    expect(translateInterfaceText('vi', 'Night transition delay')).toBe(
+      'Thời gian chuyển vai ban đêm',
+    );
+    expect(translateInterfaceText('vi', 'First role wakes in')).toBe(
+      'Vai đầu tiên thức dậy sau',
+    );
+    expect(translateInterfaceText('vi', 'Retry transition')).toBe(
+      'Thử chuyển tiếp lại',
+    );
+    expect(
+      translateInterfaceText(
+        'vi',
+        'The next night step starts automatically when the countdown ends.',
+      ),
+    ).toBe(
+      'Bước ban đêm tiếp theo sẽ tự động bắt đầu khi hết thời gian đếm ngược.',
+    );
+    expect(translateInterfaceText('vi', 'Eyes-closed buffer:')).toBe(
+      'Thời gian nhắm mắt:',
+    );
+    expect(translateInterfaceText('vi', 'Continuing…')).toBe('Đang tiếp tục…');
+    expect(translateInterfaceText('vi', '5s')).toBe('5 giây');
+  });
+
   it('translates public-flow, voting, and winner messages', () => {
     expect(translateInterfaceText('vi', 'Morning')).toBe('Buổi sáng');
     expect(translateInterfaceText('vi', 'Seat')).toBe('Ghế');
@@ -57,6 +88,9 @@ describe('multi-language', () => {
     );
     expect(translateInterfaceText('vi', 'Resolve the vote')).toBe(
       'Xử lý kết quả bỏ phiếu',
+    );
+    expect(translateInterfaceText('vi', 'No player was executed.')).toBe(
+      'Không người chơi nào bị treo cổ.',
     );
     expect(
       translateInterfaceText(

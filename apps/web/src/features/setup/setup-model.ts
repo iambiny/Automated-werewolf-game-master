@@ -21,6 +21,7 @@ export interface SetupRules {
   foolExecutionBehavior: FoolExecutionBehavior;
   guardAllowConsecutiveTarget: boolean;
   guardAllowSelfProtect: boolean;
+  nightTransitionSeconds: number;
   roleTimerSeconds: number;
   seerMode: 'ROLE' | 'TEAM';
   witchAllowHealAndPoison: boolean;
@@ -52,6 +53,7 @@ export const DEFAULT_SETUP_RULES: SetupRules = {
   foolExecutionBehavior: 'SURVIVES_FIRST_EXECUTION_LOSES_VOTE',
   guardAllowConsecutiveTarget: false,
   guardAllowSelfProtect: true,
+  nightTransitionSeconds: 5,
   roleTimerSeconds: 45,
   seerMode: 'TEAM',
   witchAllowHealAndPoison: false,
@@ -157,6 +159,10 @@ export function parseSetupRules(value: JsonObject | null): SetupRules {
     guardAllowSelfProtect: booleanOr(
       value.guardAllowSelfProtect,
       DEFAULT_SETUP_RULES.guardAllowSelfProtect,
+    ),
+    nightTransitionSeconds: numberOr(
+      value.nightTransitionSeconds,
+      DEFAULT_SETUP_RULES.nightTransitionSeconds,
     ),
     roleTimerSeconds: numberOr(
       value.roleTimerSeconds,

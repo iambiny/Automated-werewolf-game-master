@@ -233,6 +233,71 @@ describe('Mayor and voting mechanics', () => {
     expect(resolution.state.players.guard?.lifeState).toBe('DEAD');
   });
 
+  it('executes no one when the leading tally is exactly half the living players', () => {
+    let state = keepOnly(createNightTestState('SEER'), [
+      'seer',
+      'guard',
+      'villager',
+      'hunter',
+    ]);
+    state = {
+      ...state,
+      phase: { dayNumber: 1, round: 1, type: 'VOTING' },
+      phaseId: 'day-1-voting',
+    };
+    state = success(startDayExecutionVote(state));
+    state = castBallots(state, [
+      { targetPlayerId: 'guard', voterId: 'seer' },
+      { targetPlayerId: 'guard', voterId: 'guard' },
+      { targetPlayerId: 'villager', voterId: 'villager' },
+      { targetPlayerId: null, voterId: 'hunter' },
+    ]);
+    state = enterDayDeathResolution(state);
+
+    const resolution = resolveVote(state, votingRules);
+
+    expect(resolution.ok).toBe(true);
+    if (!resolution.ok) throw new Error(resolution.error.message);
+    expect(resolution.state.players.guard?.lifeState).toBe('ALIVE');
+    expect(resolution.state.votingContext).toBeUndefined();
+    expect(resolution.events).toEqual([
+      {
+        result: {
+          tallies: expect.arrayContaining([
+            { targetPlayerId: 'guard', weightedVotes: 2 },
+          ]),
+          tiedPlayerIds: [],
+        },
+        type: 'VOTE_RESOLVED',
+      },
+    ]);
+  });
+
+  it('executes the leading player when the tally exceeds half the living players', () => {
+    let state = keepOnly(createNightTestState('SEER'), [
+      'seer',
+      'guard',
+      'villager',
+      'hunter',
+    ]);
+    state = {
+      ...state,
+      phase: { dayNumber: 1, round: 1, type: 'VOTING' },
+      phaseId: 'day-1-voting',
+    };
+    state = success(startDayExecutionVote(state));
+    state = castBallots(state, [
+      { targetPlayerId: 'guard', voterId: 'seer' },
+      { targetPlayerId: 'guard', voterId: 'guard' },
+      { targetPlayerId: 'guard', voterId: 'villager' },
+      { targetPlayerId: null, voterId: 'hunter' },
+    ]);
+    state = enterDayDeathResolution(state);
+    state = success(resolveVote(state, votingRules));
+
+    expect(state.players.guard?.lifeState).toBe('DEAD');
+  });
+
   it('delegates Fool execution to an interceptor and removes its vote', () => {
     let state = keepOnly(createNightTestState('SEER'), [
       'seer',
@@ -359,7 +424,7 @@ describe('Mayor and voting mechanics', () => {
     expect(state.winner).toBeUndefined();
   });
 
-  it('creates a constrained revote and returns to the voting phase legally', () => {
+  it('does not create a revote when tied leaders lack a strict majority', () => {
     let state = keepOnly(createNightTestState('SEER'), [
       'seer',
       'guard',
@@ -381,17 +446,9 @@ describe('Mayor and voting mechanics', () => {
     state = enterDayDeathResolution(state);
     state = success(resolveVote(state, votingRules));
 
-    expect(state.votingContext).toMatchObject({
-      ballots: {},
-      eligibleTargetIds: ['guard', 'villager'],
-      round: 2,
-    });
-
-    const returnedToVote = transitionPhase(state, {
-      phase: { dayNumber: 1, round: 2, type: 'VOTING' },
-      phaseId: 'day-1-revote',
-    });
-    expect(returnedToVote.ok).toBe(true);
+    expect(state.votingContext).toBeUndefined();
+    expect(state.players.guard?.lifeState).toBe('ALIVE');
+    expect(state.players.villager?.lifeState).toBe('ALIVE');
   });
 
   it('queues a daytime Hunter shot after execution', () => {

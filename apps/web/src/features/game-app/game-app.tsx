@@ -7,7 +7,11 @@ import React, {
   useState,
   type ReactNode,
 } from 'react';
-import { MVP_ROLE_IDS, type MvpRoleId } from '@werewolf/role-catalog';
+import {
+  MVP_ROLE_IDS,
+  mvpRoleCatalog,
+  type MvpRoleId,
+} from '@werewolf/role-catalog';
 
 import { IndexedDbMatchRepository } from '../../adapters/persistence/indexeddb-match-repository';
 import {
@@ -102,6 +106,24 @@ type Screen =
   | 'DAY_VOTE'
   | 'VOTE_OUTCOME'
   | 'GAME_OVER';
+
+type RoleFactionId = 'VILLAGERS' | 'WEREWOLVES' | 'THIRD_PARTY';
+
+const ROLE_FACTION_SECTIONS: ReadonlyArray<{
+  id: RoleFactionId;
+  label: string;
+}> = [
+  { id: 'VILLAGERS', label: 'Villagers' },
+  { id: 'WEREWOLVES', label: 'Werewolves' },
+  { id: 'THIRD_PARTY', label: 'Third Party' },
+];
+
+function roleFaction(roleId: MvpRoleId): RoleFactionId {
+  const teamId = mvpRoleCatalog[roleId].teamId;
+  if (teamId === 'VILLAGE') return 'VILLAGERS';
+  if (teamId === 'WEREWOLF') return 'WEREWOLVES';
+  return 'THIRD_PARTY';
+}
 
 export function GameApp() {
   const controllerRef = useRef<GameController | null>(null);
@@ -1165,6 +1187,9 @@ export function GameApp() {
             onConfirm={() => void confirmRole()}
             onSelect={setSelectedRole}
             playerName={registration.currentPlayer.displayName}
+            roleIds={MVP_ROLE_IDS.filter((roleId) =>
+              registration.preparedRoleIds.includes(roleId),
+            )}
             roleLabels={roleLabels}
             selectedRole={selectedRole}
           />
@@ -1198,6 +1223,7 @@ export function GameApp() {
             error={nightError}
             nightNumber={resumeView?.cycle ?? 1}
             onStart={() => void beginNightTurns()}
+            transitionSeconds={rules.nightTransitionSeconds}
           />
         )}
         {screen === 'NIGHT_WAKE' && privateTurn && (
@@ -1244,6 +1270,7 @@ export function GameApp() {
             error={nightError}
             onContinue={() => void advanceNight()}
             roleId={privateTurn.roleId}
+            transitionSeconds={rules.nightTransitionSeconds}
           />
         )}
         {screen === 'NIGHT_RESOLVING' && (
@@ -1599,42 +1626,28 @@ function RoleSetup({
           {total} / {playerCount}
         </strong>
       </div>
-      <div className="role-count-grid">
-        {MVP_ROLE_IDS.map((roleId) => (
-          <div
-            className={`role-count-card role-${roleId.toLowerCase().replace('_', '-')}`}
-            key={roleId}
+      <div className="role-faction-list">
+        {ROLE_FACTION_SECTIONS.map((faction) => (
+          <section
+            aria-labelledby={`faction-${faction.id}`}
+            className={`role-faction role-faction-${faction.id.toLowerCase()}`}
+            key={faction.id}
           >
-            <div>
-              <span className="role-glyph">{roleGlyph(roleId)}</span>
-              <strong>{roleLabels[roleId]}</strong>
+            <h3 id={`faction-${faction.id}`}>{faction.label}</h3>
+            <div className="role-count-grid">
+              {MVP_ROLE_IDS.filter(
+                (roleId) => roleFaction(roleId) === faction.id,
+              ).map((roleId) => (
+                <RoleCountCard
+                  counts={counts}
+                  key={roleId}
+                  onChange={onChange}
+                  roleId={roleId}
+                  roleLabel={roleLabels[roleId]}
+                />
+              ))}
             </div>
-            <div className="stepper">
-              <button
-                aria-label={`Remove ${roleLabels[roleId]}`}
-                disabled={counts[roleId] === 0}
-                onClick={() =>
-                  onChange({
-                    ...counts,
-                    [roleId]: Math.max(0, counts[roleId] - 1),
-                  })
-                }
-              >
-                −
-              </button>
-              <output aria-label={`${roleLabels[roleId]} count`}>
-                {counts[roleId]}
-              </output>
-              <button
-                aria-label={`Add ${roleLabels[roleId]}`}
-                onClick={() =>
-                  onChange({ ...counts, [roleId]: counts[roleId] + 1 })
-                }
-              >
-                ＋
-              </button>
-            </div>
-          </div>
+          </section>
         ))}
       </div>
       <InlineError message={error} />
@@ -1645,6 +1658,50 @@ function RoleSetup({
         Review game rules
       </button>
     </WizardFrame>
+  );
+}
+
+function RoleCountCard({
+  counts,
+  onChange,
+  roleId,
+  roleLabel,
+}: {
+  counts: RoleCounts;
+  onChange: (counts: RoleCounts) => void;
+  roleId: MvpRoleId;
+  roleLabel: string;
+}) {
+  return (
+    <div
+      className={`role-count-card role-${roleId.toLowerCase().replace('_', '-')}`}
+    >
+      <div>
+        <span className="role-glyph">{roleGlyph(roleId)}</span>
+        <strong>{roleLabel}</strong>
+      </div>
+      <div className="stepper">
+        <button
+          aria-label={`Remove ${roleLabel}`}
+          disabled={counts[roleId] === 0}
+          onClick={() =>
+            onChange({
+              ...counts,
+              [roleId]: Math.max(0, counts[roleId] - 1),
+            })
+          }
+        >
+          −
+        </button>
+        <output aria-label={`${roleLabel} count`}>{counts[roleId]}</output>
+        <button
+          aria-label={`Add ${roleLabel}`}
+          onClick={() => onChange({ ...counts, [roleId]: counts[roleId] + 1 })}
+        >
+          ＋
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -1726,10 +1783,7 @@ function RulesSetup({
           <SegmentedControl
             value={rules.foolExecutionBehavior}
             options={[
-              [
-                'SURVIVES_FIRST_EXECUTION_LOSES_VOTE',
-                'Survives, loses vote',
-              ],
+              ['SURVIVES_FIRST_EXECUTION_LOSES_VOTE', 'Survives, loses vote'],
               ['WINS_WHEN_EXECUTED', 'Wins when executed'],
               ['DIES_NORMALLY', 'Dies normally'],
             ]}
@@ -1756,6 +1810,16 @@ function RulesSetup({
           />
         </SettingGroup>
         <SettingGroup title="Timers">
+          <NumberSetting
+            label="Night transition delay"
+            min={1}
+            step={1}
+            value={rules.nightTransitionSeconds}
+            suffix="sec"
+            onChange={(nightTransitionSeconds) =>
+              onChange({ ...rules, nightTransitionSeconds })
+            }
+          />
           <NumberSetting
             label="Private role turn"
             value={rules.roleTimerSeconds}
@@ -1856,6 +1920,7 @@ function RoleSelection({
   onConfirm,
   onSelect,
   playerName,
+  roleIds,
   roleLabels,
   selectedRole,
 }: {
@@ -1863,6 +1928,7 @@ function RoleSelection({
   onConfirm: () => void;
   onSelect: (role: MvpRoleId) => void;
   playerName: string;
+  roleIds: readonly MvpRoleId[];
   roleLabels: Record<MvpRoleId, string>;
   selectedRole: MvpRoleId | null;
 }) {
@@ -1875,7 +1941,7 @@ function RoleSelection({
       <p className="eyebrow">Match your physical card</p>
       <h2>Choose your role</h2>
       <div className="role-choice-grid">
-        {MVP_ROLE_IDS.map((roleId) => (
+        {roleIds.map((roleId) => (
           <button
             aria-pressed={selectedRole === roleId}
             className={
@@ -2014,12 +2080,16 @@ function NightReadyScreen({
   error,
   nightNumber,
   onStart,
+  transitionSeconds,
 }: {
   busy: boolean;
   error: string | null;
   nightNumber: number;
   onStart: () => void;
+  transitionSeconds: number;
 }) {
+  const remaining = useDeadlineCountdown(transitionSeconds, onStart);
+
   return (
     <section className="night-ready panel-enter">
       <div className="moon" aria-hidden="true" />
@@ -2028,14 +2098,20 @@ function NightReadyScreen({
       <p>
         Place the phone with the moderator. Keep your eyes closed until dawn.
       </p>
+      <p className="transition-countdown" role="timer">
+        First role wakes in <strong>{remaining}s</strong>
+      </p>
       <InlineError message={error} />
-      <button
-        className="button button-primary night-action"
-        disabled={busy}
-        onClick={onStart}
-      >
-        {busy ? 'Starting the night…' : 'Everyone is ready'}
-      </button>
+      {busy && <p className="eyebrow">Starting the night…</p>}
+      {error && (
+        <button
+          className="button button-primary night-action"
+          disabled={busy}
+          onClick={onStart}
+        >
+          Retry transition
+        </button>
+      )}
     </section>
   );
 }
@@ -2412,12 +2488,16 @@ function NightSleepScreen({
   error,
   onContinue,
   roleId,
+  transitionSeconds,
 }: {
   busy: boolean;
   error: string | null;
   onContinue: () => void;
   roleId: string;
+  transitionSeconds: number;
 }) {
+  const remaining = useDeadlineCountdown(transitionSeconds, onContinue);
+
   return (
     <section className="night-cue sleep-cue panel-enter">
       <div className="sleep-glyph" aria-hidden="true">
@@ -2425,15 +2505,21 @@ function NightSleepScreen({
       </div>
       <p className="eyebrow">Action hidden</p>
       <h2>{nightRoleLabel(roleId)}, close your eyes.</h2>
-      <p>The screen is safe to return to the moderator.</p>
+      <p>The next night step starts automatically when the countdown ends.</p>
+      <p className="transition-countdown" role="timer">
+        Eyes-closed buffer: <strong>{remaining}s</strong>
+      </p>
       <InlineError message={error} />
-      <button
-        className="button button-primary night-action"
-        disabled={busy}
-        onClick={onContinue}
-      >
-        {busy ? 'Saving…' : 'Role is asleep'}
-      </button>
+      {busy && <p className="eyebrow">Continuing…</p>}
+      {error && (
+        <button
+          className="button button-primary night-action"
+          disabled={busy}
+          onClick={onContinue}
+        >
+          Retry transition
+        </button>
+      )}
     </section>
   );
 }
@@ -3079,12 +3165,16 @@ function SegmentedControl<T extends string>({
 }
 function NumberSetting({
   label,
+  min = 15,
   onChange,
+  step = 15,
   suffix,
   value,
 }: {
   label: string;
+  min?: number;
   onChange: (value: number) => void;
+  step?: number;
   suffix: string;
   value: number;
 }) {
@@ -3093,9 +3183,9 @@ function NumberSetting({
       <span>{label}</span>
       <span>
         <input
-          min="15"
+          min={min}
           onChange={(event) => onChange(Number(event.target.value))}
-          step="15"
+          step={step}
           type="number"
           value={value}
         />{' '}

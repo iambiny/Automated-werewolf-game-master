@@ -67,6 +67,9 @@ const pageCopy: Record<string, string> = {
   'Begin secret registration': 'Bắt đầu đăng ký vai trò bí mật',
   'Build the physical deck': 'Chuẩn bị bộ bài vật lý',
   'Cards selected': 'Số lá bài đã chọn',
+  Villagers: 'Phe Dân Làng',
+  Werewolves: 'Phe Ma Sói',
+  'Third Party': 'Phe Thứ Ba',
   'Confirm my role': 'Xác nhận vai trò của tôi',
   'Choose your role': 'Chọn vai trò của bạn',
   'Checking the village…': 'Đang kiểm tra ngôi làng…',
@@ -90,6 +93,7 @@ const pageCopy: Record<string, string> = {
   'Narration volume': 'Âm lượng lời dẫn',
   'Night action sound effects': 'Hiệu ứng âm thanh hành động ban đêm',
   'No target': 'Không có mục tiêu',
+  'No player was executed.': 'Không người chơi nào bị treo cổ.',
   'No outcome was guessed and no private information was displayed.':
     'Không có kết quả nào bị phỏng đoán và không có thông tin riêng tư nào được hiển thị.',
   'One shared device. Physical cards. A calm game master who never forgets what happened in the night.':
@@ -196,6 +200,13 @@ const pageCopy: Record<string, string> = {
   'Place the phone with the moderator. Keep your eyes closed until dawn.':
     'Đặt điện thoại cạnh quản trò. Hãy nhắm mắt cho đến bình minh.',
   'Starting the night…': 'Đang bắt đầu đêm…',
+  'Night transition delay': 'Thời gian chuyển vai ban đêm',
+  'First role wakes in': 'Vai đầu tiên thức dậy sau',
+  'Retry transition': 'Thử chuyển tiếp lại',
+  'The next night step starts automatically when the countdown ends.':
+    'Bước ban đêm tiếp theo sẽ tự động bắt đầu khi hết thời gian đếm ngược.',
+  'Eyes-closed buffer:': 'Thời gian nhắm mắt:',
+  'Continuing…': 'Đang tiếp tục…',
   'Only this role should look at the screen.':
     'Chỉ người có vai trò này được nhìn màn hình.',
   'Hold the night still.': 'Hãy giữ yên màn đêm.',
@@ -394,6 +405,7 @@ function translatePattern(value: string, locale: SupportedLocale): string {
       .replace(/^Add (.+)$/, 'Thêm $1')
       .replace(/^(.+) count$/, 'Số lượng $1')
       .replace(/^(.+) sec$/, '$1 giây')
+      .replace(/^(\d+)s$/, '$1 giây')
       .replace(/^(\d+) left$/, 'Còn $1')
       .replace(/^(.+) was attacked\.$/, '$1 đã bị tấn công.')
       .replace(/^(.+) wins\.$/, '$1 chiến thắng.');
@@ -412,6 +424,7 @@ function translatePattern(value: string, locale: SupportedLocale): string {
     .replace(/^Xóa (.+)$/, 'Remove $1')
     .replace(/^Thêm (.+)$/, 'Add $1')
     .replace(/^Số lượng (.+)$/, '$1 count')
+    .replace(/^(\d+) giây$/, '$1s')
     .replace(/^(.+) giây$/, '$1 sec')
     .replace(/^Còn (\d+)$/, '$1 left')
     .replace(/^(.+) đã bị tấn công\.$/, '$1 was attacked.')

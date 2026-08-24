@@ -175,6 +175,12 @@ export function resolveVote(
   }
 
   const highestVote = Math.max(...tallies.map((tally) => tally.weightedVotes));
+  if (
+    context.type === 'DAY_EXECUTION' &&
+    highestVote <= getLivingPlayerIds(state).length / 2
+  ) {
+    return resolveNoExecution(state, tallies);
+  }
   const tiedPlayerIds = tallies
     .filter((tally) => tally.weightedVotes === highestVote)
     .map((tally) => tally.targetPlayerId);

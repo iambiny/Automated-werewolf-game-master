@@ -671,7 +671,12 @@ For normal execution voting:
 ```text
 Mayor ballot contributes 2
 other ballots contribute 1
+execute only when the leading weighted tally > living player count / 2
 ```
+
+The strict-majority gate runs before tie or execution handling. If it is not
+met, the vote resolves with no elimination and the voting context is cleared.
+Mayor elections continue to use their existing plurality and tie behavior.
 
 ---
 

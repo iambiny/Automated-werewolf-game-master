@@ -44,6 +44,10 @@ describe('setup model', () => {
     );
   });
 
+  it('defaults older saved matches to a five-second night transition', () => {
+    expect(parseSetupRules({}).nightTransitionSeconds).toBe(5);
+  });
+
   it('migrates the previous Fool toggle and accepts the win option', () => {
     expect(
       parseSetupRules({ foolSurvivesFirstExecution: false })

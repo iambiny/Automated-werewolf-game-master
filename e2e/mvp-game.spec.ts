@@ -43,7 +43,6 @@ test('completes the full MVP offline and recovers every safe checkpoint', async 
       page.getByRole('heading', { name: 'The village is ready' }),
     ).toBeVisible();
     await page.getByRole('button', { name: 'Begin Night 1' }).click();
-    await page.getByRole('button', { name: 'Everyone is ready' }).click();
 
     await openNightTurn(page, 'Seer');
     await recover(page, 'Night 1');
@@ -84,7 +83,6 @@ test('completes the full MVP offline and recovers every safe checkpoint', async 
     await page.getByRole('button', { name: 'Continue' }).click();
 
     await expect(page.getByText('Night 2')).toBeVisible();
-    await page.getByRole('button', { name: 'Everyone is ready' }).click();
 
     await openNightTurn(page, 'Seer');
     await chooseTarget(page, 'Player 4');
@@ -157,6 +155,9 @@ async function startConfiguredGame(page: Page) {
   await page.getByRole('button', { name: 'Remove Villager' }).click();
   await page.getByRole('button', { name: 'Add Fool' }).click();
   await page.getByRole('button', { name: 'Review game rules' }).click();
+  await page
+    .getByRole('spinbutton', { name: 'Night transition delay' })
+    .fill('1');
   await page.getByRole('button', { name: 'Begin secret registration' }).click();
 }
 
@@ -195,9 +196,9 @@ async function chooseTarget(page: Page, player: string) {
 }
 
 async function sleepRole(page: Page) {
-  const button = page.getByRole('button', { name: 'Role is asleep' });
-  await button.click();
-  await expect(button).toBeHidden();
+  const sleepCue = page.locator('.sleep-cue');
+  await expect(sleepCue).toBeVisible();
+  await expect(sleepCue).toBeHidden();
 }
 
 async function revealMorning(page: Page) {
