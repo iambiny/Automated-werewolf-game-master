@@ -921,6 +921,9 @@ Requirements:
 - no browser-history leak;
 - no previous role visible;
 - deck mismatch gives generic error.
+- group physical-deck controls into Villagers, Werewolves, and Third Party;
+- show only prepared roles during private role selection, including after
+  recovery.
 
 ## Acceptance criteria
 
@@ -949,6 +952,12 @@ Everyone close your eyes
 ```
 
 Large dark UI.
+
+The screen runs the configured night-transition countdown (5 seconds by
+default) and starts the first queued role automatically. The same countdown is
+used after each sleep cue; it advances to the next role or, after the final
+role, resolves the night and transitions directly to dawn. Transition failures
+retain a manual retry without exposing private state.
 
 ## 11.2 Role transition
 
@@ -1093,6 +1102,13 @@ Mayor vote = ×2
 ```
 
 Engine remains source of weighted result.
+
+Day execution requires a strict majority: the leading weighted tally must
+exceed half of all currently living players. Exact-half and minority results
+leave every candidate alive and end the vote without a revote.
+
+The private night-action countdown is rendered as a large top-right pill so it
+remains legible while the acting player uses the target controls.
 
 ---
 

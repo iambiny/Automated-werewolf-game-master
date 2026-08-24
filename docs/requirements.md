@@ -328,6 +328,12 @@ For each player in seating order:
 8. Require an explicit **Pass to next player** action.
 9. Do not provide Back navigation that reveals the previous selection.
 
+The physical deck builder groups roles by alignment into Villagers,
+Werewolves, and Third Party sections. During private registration, the choice
+screen lists only roles whose configured physical-deck count is greater than
+zero. This prepared-role list is derived from the persisted match composition
+so it remains correct after recovery.
+
 ## 7.2 Role multiset validation
 
 ### FR-ROLE-REG-01
@@ -434,6 +440,11 @@ Required pattern:
 9. move to next role.
 
 No next-role private UI may be visible while the previous role may still be looking.
+
+The privacy delay is a match-level timer setting (5 seconds by default). It
+starts automatically before the first role call, after every completed role
+turn, and before dawn after the final role. Expiry advances the night without a
+moderator tap; a manual retry is shown only if the persisted transition fails.
 
 ## 9.4 Role action timers
 
@@ -733,6 +744,12 @@ Each eligible voter must be able to skip/abstain. A skipped ballot counts as
 submitted but contributes no votes. If every voter skips a Mayor election, the
 engine selects one living eligible player at random. If every voter skips an
 execution vote, no player is executed.
+
+A day execution additionally requires the leading weighted tally to be
+strictly greater than half the number of currently living players. An exact
+half, a minority plurality, or a below-threshold tie executes nobody and does
+not trigger a revote. The configured Mayor ballot weight contributes to this
+threshold. Mayor elections are not subject to the execution threshold.
 
 ## 13.4 Tie policies
 

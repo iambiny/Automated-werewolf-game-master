@@ -28,6 +28,8 @@ describe('role registration projection', () => {
       displayName: 'Binh',
       playerId: 'player-2',
     });
-    expect(JSON.stringify(view)).not.toContain('SEER');
+    expect(view?.preparedRoleIds).toEqual(['SEER', 'WEREWOLF', 'VILLAGER']);
+    expect(view).not.toHaveProperty('roleAssignments');
+    expect(JSON.stringify(view)).not.toContain('player-1');
   });
 });

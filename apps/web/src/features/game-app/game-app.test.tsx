@@ -4,7 +4,14 @@ import 'fake-indexeddb/auto';
 import '@testing-library/jest-dom/vitest';
 
 import React from 'react';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -75,6 +82,14 @@ describe('GameApp setup journey', () => {
       screen.getByRole('button', { name: 'Continue with 8 players' }),
     );
     expect(screen.getByText('8 / 8')).toBeInTheDocument();
+    const villagers = screen.getByRole('region', { name: 'Villagers' });
+    const werewolves = screen.getByRole('region', { name: 'Werewolves' });
+    const thirdParty = screen.getByRole('region', { name: 'Third Party' });
+    expect(within(villagers).getByText('Villager')).toBeInTheDocument();
+    expect(within(villagers).getByText('Seer')).toBeInTheDocument();
+    expect(within(werewolves).getByText('Werewolf')).toBeInTheDocument();
+    expect(within(werewolves).getByText('Demon Wolf')).toBeInTheDocument();
+    expect(within(thirdParty).getByText('Fool')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Review game rules' }));
 
     expect(
@@ -91,5 +106,17 @@ describe('GameApp setup journey', () => {
       ).toBeInTheDocument();
       expect(screen.getByText('1 / 8')).toBeInTheDocument();
     });
+
+    fireEvent.pointerDown(
+      screen.getByRole('button', { name: 'Hold to reveal roles' }),
+    );
+    await screen.findByRole(
+      'heading',
+      { name: 'Choose your role' },
+      { timeout: 1_500 },
+    );
+    expect(screen.getByText('Villager')).toBeInTheDocument();
+    expect(screen.queryByText('Demon Wolf')).not.toBeInTheDocument();
+    expect(screen.queryByText('Fool')).not.toBeInTheDocument();
   });
 });

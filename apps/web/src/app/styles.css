@@ -420,6 +420,29 @@ p {
 .deck-meter .count-valid {
   color: var(--safe);
 }
+.role-faction-list {
+  display: grid;
+  gap: 1rem;
+}
+.role-faction {
+  padding: 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 1.15rem;
+  background: rgba(255, 255, 255, 0.018);
+}
+.role-faction h3 {
+  margin: 0 0 0.75rem;
+  color: var(--safe);
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.role-faction-werewolves h3 {
+  color: var(--ember-bright);
+}
+.role-faction-third_party h3 {
+  color: var(--gold);
+}
 .role-count-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -825,6 +848,22 @@ p {
   width: min(100%, 25rem);
   margin-top: 2rem;
 }
+.transition-countdown {
+  display: inline-flex;
+  margin-top: 1.5rem;
+  padding: 0.7rem 1rem;
+  align-items: baseline;
+  gap: 0.35rem;
+  border: 1px solid rgba(215, 172, 105, 0.28);
+  border-radius: 999px;
+  background: rgba(215, 172, 105, 0.08);
+  color: var(--muted);
+}
+.transition-countdown strong {
+  min-width: 2.2rem;
+  color: var(--gold);
+  font-size: 1.35rem;
+}
 .night-cue,
 .night-result,
 .night-resolving,
@@ -915,13 +954,15 @@ p {
 }
 .night-turn-header strong {
   display: grid;
-  width: 3.15rem;
-  height: 2rem;
+  width: 8rem;
+  height: 3.25rem;
   place-items: center;
   border: 1px solid var(--line);
   border-radius: 2rem;
   background: rgba(255, 255, 255, 0.035);
   color: var(--ink);
+  font-size: 1.35rem;
+  letter-spacing: 0;
 }
 .night-turn-header .timer-warning {
   border-color: rgba(240, 112, 85, 0.35);
