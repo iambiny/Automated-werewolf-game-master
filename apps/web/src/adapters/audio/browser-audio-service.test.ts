@@ -29,12 +29,28 @@ class FakeAudioContext {
 }
 
 class FakeAudio extends EventTarget {
+  static holdNextPlay = false;
   static instances: FakeAudio[] = [];
   currentTime = 0;
   loop = false;
-  pause = vi.fn();
-  play = vi.fn(async () => {
-    queueMicrotask(() => this.dispatchEvent(new Event('ended')));
+  private rejectPendingPlay: ((reason?: unknown) => void) | null = null;
+  pause = vi.fn(() => {
+    if (!this.rejectPendingPlay) return;
+    const interruption = new Error('Playback was interrupted.');
+    interruption.name = 'AbortError';
+    this.rejectPendingPlay(interruption);
+    this.rejectPendingPlay = null;
+  });
+  play = vi.fn(() => {
+    if (FakeAudio.holdNextPlay) {
+      FakeAudio.holdNextPlay = false;
+      return new Promise<void>((_resolve, reject) => {
+        this.rejectPendingPlay = reject;
+      });
+    }
+    return Promise.resolve().then(() => {
+      this.dispatchEvent(new Event('ended'));
+    });
   });
   volume = 1;
 
@@ -46,6 +62,7 @@ class FakeAudio extends EventTarget {
 
 describe('BrowserAudioService', () => {
   beforeEach(() => {
+    FakeAudio.holdNextPlay = false;
     FakeAudioContext.oscillators = [];
     FakeAudio.instances = [];
     vi.stubGlobal('AudioContext', FakeAudioContext);
@@ -114,6 +131,29 @@ describe('BrowserAudioService', () => {
     expect(FakeAudio.instances.at(-1)?.src).toBe(
       '/audio/voice/en/hunter_action.mp3',
     );
+  });
+
+  it('does not fail when a new cue interrupts narration that is still starting', async () => {
+    const service = new BrowserAudioService();
+    await service.unlock();
+    FakeAudio.holdNextPlay = true;
+
+    const interrupted = service.play({
+      key: 'NIGHT_START',
+      kind: 'NARRATION',
+      locale: 'en',
+    });
+    await vi.waitFor(() => expect(FakeAudio.instances).toHaveLength(1));
+
+    await expect(
+      service.play({
+        kind: 'ROLE_NARRATION',
+        locale: 'en',
+        roleId: 'SEER',
+        stage: 'WAKE',
+      }),
+    ).resolves.toBeUndefined();
+    await expect(interrupted).resolves.toBeUndefined();
   });
 
   it('falls back cleanly before browser audio is unlocked', async () => {

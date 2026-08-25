@@ -256,6 +256,10 @@ function playToCompletion(
     );
     void element.play().catch((error: unknown) => {
       if (settled) return;
+      if (isPlaybackInterruption(error)) {
+        complete();
+        return;
+      }
       settled = true;
       finish();
       reject(
@@ -263,6 +267,15 @@ function playToCompletion(
       );
     });
   });
+}
+
+function isPlaybackInterruption(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'name' in error &&
+    error.name === 'AbortError'
+  );
 }
 
 function clampVolume(value: number): number {

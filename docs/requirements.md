@@ -998,6 +998,13 @@ Audio playback must expose completion events so the phase engine can synchronize
 ### NFR-AUDIO-05
 If an audio asset fails, the game must remain operable with visual text instructions.
 
+### NFR-AUDIO-06
+When an automated phase or role transition supersedes narration that is still
+starting, the browser's `AbortError` is an expected cancellation rather than an
+audio-system failure. The replacement cue must continue, and the application
+must not disable audio or show the unavailable-audio fallback. Asset errors,
+decode failures, and autoplay-policy rejections remain genuine failures.
+
 ## 17.4 Narrator packs
 
 Future-ready metadata should allow multiple narration packs without changing game rules.
