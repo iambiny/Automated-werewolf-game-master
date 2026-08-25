@@ -430,6 +430,11 @@ interface AudioService {
 
 The application layer waits for `play()` completion to synchronize narration.
 
+Starting a replacement narration cue may pause a previous cue before its
+browser `play()` promise has settled. The resulting `AbortError` represents
+intentional interruption and resolves normally; other playback failures still
+activate the visual fallback.
+
 Fallback:
 
 ```text

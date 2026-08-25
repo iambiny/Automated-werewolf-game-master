@@ -1163,6 +1163,11 @@ Initial MVP can use temporary recorded/TTS-generated static files.
 
 Do not use network TTS at runtime.
 
+Narration playback treats `AbortError` from an intentionally superseded cue as
+successful cancellation. This prevents timer-driven production transitions
+from marking the entire audio service unavailable while preserving failure
+reporting for real playback errors.
+
 ## 18.2 Audio startup
 
 Before game:
