@@ -1168,6 +1168,11 @@ successful cancellation. This prevents timer-driven production transitions
 from marking the entire audio service unavailable while preserving failure
 reporting for real playback errors.
 
+For iPhone Safari and all other iOS browsers, the Test Sound tap primes three
+long-lived `HTMLAudioElement` channels (narration, effects, and music) before
+any `await`. Later timer-driven playback changes each authorized element's
+source instead of constructing a new element after user activation expires.
+
 ## 18.2 Audio startup
 
 Before game:

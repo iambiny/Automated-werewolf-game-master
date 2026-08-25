@@ -29,10 +29,15 @@ class FakeAudioContext {
 }
 
 class FakeAudio extends EventTarget {
+  static enforcePerElementAuthorization = false;
   static holdNextPlay = false;
   static instances: FakeAudio[] = [];
+  static userActivation = false;
+  private source = '';
+  private authorized = false;
   currentTime = 0;
   loop = false;
+  preload = '';
   private rejectPendingPlay: ((reason?: unknown) => void) | null = null;
   pause = vi.fn(() => {
     if (!this.rejectPendingPlay) return;
@@ -42,6 +47,16 @@ class FakeAudio extends EventTarget {
     this.rejectPendingPlay = null;
   });
   play = vi.fn(() => {
+    if (
+      FakeAudio.enforcePerElementAuthorization &&
+      !this.authorized &&
+      !FakeAudio.userActivation
+    ) {
+      const rejection = new Error('Playback requires user activation.');
+      rejection.name = 'NotAllowedError';
+      return Promise.reject(rejection);
+    }
+    if (FakeAudio.userActivation) this.authorized = true;
     if (FakeAudio.holdNextPlay) {
       FakeAudio.holdNextPlay = false;
       return new Promise<void>((_resolve, reject) => {
@@ -52,19 +67,32 @@ class FakeAudio extends EventTarget {
       this.dispatchEvent(new Event('ended'));
     });
   });
+  srcHistory: string[] = [];
   volume = 1;
 
-  constructor(public src: string) {
+  constructor(src: string) {
     super();
+    this.src = src;
     FakeAudio.instances.push(this);
+  }
+
+  get src() {
+    return this.source;
+  }
+
+  set src(value: string) {
+    this.source = value;
+    this.srcHistory.push(value);
   }
 }
 
 describe('BrowserAudioService', () => {
   beforeEach(() => {
+    FakeAudio.enforcePerElementAuthorization = false;
     FakeAudio.holdNextPlay = false;
     FakeAudioContext.oscillators = [];
     FakeAudio.instances = [];
+    FakeAudio.userActivation = false;
     vi.stubGlobal('AudioContext', FakeAudioContext);
     vi.stubGlobal('Audio', FakeAudio);
   });
@@ -95,10 +123,9 @@ describe('BrowserAudioService', () => {
     });
     await service.play({ key: 'SEER_VISION', kind: 'EFFECT' });
 
-    expect(FakeAudio.instances.map((item) => item.src)).toEqual([
-      '/audio/voice/vi/seer-action.wav',
-      '/audio/effects/seer_vision.wav',
-    ]);
+    expect(FakeAudio.instances).toHaveLength(3);
+    expect(FakeAudio.instances[0]?.src).toBe('/audio/voice/vi/seer-action.wav');
+    expect(FakeAudio.instances[1]?.src).toBe('/audio/effects/seer_vision.wav');
   });
 
   it('uses distinct narration for mayor and execution voting', async () => {
@@ -112,7 +139,7 @@ describe('BrowserAudioService', () => {
     });
     await service.play({ key: 'VOTE_START', kind: 'NARRATION', locale: 'vi' });
 
-    expect(FakeAudio.instances.map((item) => item.src)).toEqual([
+    expect(FakeAudio.instances[0]?.srcHistory.slice(-2)).toEqual([
       '/audio/voice/vi/mayor_vote.wav',
       '/audio/voice/vi/vote.wav',
     ]);
@@ -128,7 +155,7 @@ describe('BrowserAudioService', () => {
       locale: 'en',
     });
 
-    expect(FakeAudio.instances.at(-1)?.src).toBe(
+    expect(FakeAudio.instances[0]?.src).toBe(
       '/audio/voice/en/hunter_action.mp3',
     );
   });
@@ -143,7 +170,9 @@ describe('BrowserAudioService', () => {
       kind: 'NARRATION',
       locale: 'en',
     });
-    await vi.waitFor(() => expect(FakeAudio.instances).toHaveLength(1));
+    await vi.waitFor(() =>
+      expect(FakeAudio.instances[0]?.play).toHaveBeenCalledTimes(2),
+    );
 
     await expect(
       service.play({
@@ -154,6 +183,43 @@ describe('BrowserAudioService', () => {
       }),
     ).resolves.toBeUndefined();
     await expect(interrupted).resolves.toBeUndefined();
+  });
+
+  it('does not fail when a music change interrupts a pending music start', async () => {
+    const service = new BrowserAudioService();
+    await service.unlock();
+    FakeAudio.holdNextPlay = true;
+
+    const interrupted = service.setBackgroundMusic('NIGHT');
+    await vi.waitFor(() =>
+      expect(FakeAudio.instances[2]?.play).toHaveBeenCalledTimes(2),
+    );
+
+    await expect(service.setBackgroundMusic('DAY')).resolves.toBeUndefined();
+    await expect(interrupted).resolves.toBeUndefined();
+    expect(FakeAudio.instances[2]?.src).toBe('/audio/music/day.wav');
+  });
+
+  it('reuses the media elements authorized by the unlock gesture', async () => {
+    const service = new BrowserAudioService();
+    FakeAudio.enforcePerElementAuthorization = true;
+    FakeAudio.userActivation = true;
+    const unlock = service.unlock();
+    FakeAudio.userActivation = false;
+    await expect(unlock).resolves.toBeUndefined();
+    const authorizedChannels = [...FakeAudio.instances];
+
+    await service.play({
+      key: 'NIGHT_START',
+      kind: 'NARRATION',
+      locale: 'en',
+    });
+    await service.play({ key: 'SEER_VISION', kind: 'EFFECT' });
+    await service.setBackgroundMusic('NIGHT');
+
+    expect(FakeAudio.instances).toEqual(authorizedChannels);
+    expect(FakeAudio.instances).toHaveLength(3);
+    expect(FakeAudio.instances[2]?.src).toBe('/audio/music/night.wav');
   });
 
   it('falls back cleanly before browser audio is unlocked', async () => {

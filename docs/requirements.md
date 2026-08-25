@@ -988,6 +988,11 @@ Audio assets needed for enabled roles must be preloaded before match start.
 
 ### NFR-AUDIO-02
 A user gesture must initialize/unlock browser audio before automated narration begins.
+The gesture handler must synchronously call `play()` on the reusable narration,
+effects, and music media elements before awaiting preload or persistence work.
+Automated cues must change the source of those authorized elements rather than
+create new `HTMLAudioElement` instances, because iOS WebKit grants playback
+permission per element.
 
 ### NFR-AUDIO-03
 Narration and sound effects need separate volume controls.

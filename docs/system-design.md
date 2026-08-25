@@ -435,6 +435,11 @@ browser `play()` promise has settled. The resulting `AbortError` represents
 intentional interruption and resolves normally; other playback failures still
 activate the visual fallback.
 
+iOS WebKit media authorization is element-specific. `unlock()` therefore
+primes reusable narration, effects, and music elements synchronously inside the
+user gesture. Preloading may continue asynchronously afterward, but automated
+phase transitions reuse the primed elements by replacing their sources.
+
 Fallback:
 
 ```text

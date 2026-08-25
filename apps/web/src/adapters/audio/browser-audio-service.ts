@@ -63,14 +63,17 @@ const EFFECT_FILES: Record<EffectKey, string> = {
   WITCH_HEAL: 'witch_heal',
   WITCH_POISON: 'witch_poison',
 };
+const MEDIA_UNLOCK_PATH = '/audio/voice/en/test.mp3';
 
 /** Offline-first audio pack with separate narration, effects, music, and UI channels. */
 export class BrowserAudioService implements AudioService {
   private context: AudioContext | null = null;
-  private currentMusic: HTMLAudioElement | null = null;
   private currentMusicKey: MusicKey | null = null;
+  private effects: HTMLAudioElement | null = null;
   private effectsVolume = 0.7;
+  private mediaUnlocked = false;
   private musicVolume = 0.38;
+  private music: HTMLAudioElement | null = null;
   private narration: HTMLAudioElement | null = null;
   private narrationVolume = 0.85;
   private playing = new Set<HTMLAudioElement>();
@@ -79,7 +82,15 @@ export class BrowserAudioService implements AudioService {
 
   async unlock(): Promise<void> {
     this.context ??= new AudioContext();
-    if (this.context.state === 'suspended') await this.context.resume();
+    const mediaUnlock = this.mediaUnlocked
+      ? Promise.resolve()
+      : this.primeMediaChannels();
+    const contextUnlock =
+      this.context.state === 'suspended'
+        ? this.context.resume()
+        : Promise.resolve();
+    await Promise.all([contextUnlock, mediaUnlock]);
+    this.mediaUnlocked = true;
     await this.playInterfaceBeep();
   }
 
@@ -102,17 +113,18 @@ export class BrowserAudioService implements AudioService {
   async play(cue: AudioCue): Promise<void> {
     this.assertUnlocked();
     const path = audioPath(cue);
-    const element = new Audio(this.preloaded.get(path) ?? path);
-    if (cue.kind !== 'EFFECT') {
-      this.narration?.pause();
-      this.narration = element;
-    }
+    const element =
+      cue.kind === 'EFFECT'
+        ? this.getEffectsChannel()
+        : this.getNarrationChannel();
+    element.pause();
+    element.currentTime = 0;
+    element.src = this.preloaded.get(path) ?? path;
     element.volume =
       cue.kind === 'EFFECT' ? this.effectsVolume : this.narrationVolume;
     this.playing.add(element);
     await playToCompletion(element, () => {
       this.playing.delete(element);
-      if (this.narration === element) this.narration = null;
     });
   }
 
@@ -143,16 +155,16 @@ export class BrowserAudioService implements AudioService {
     if (key === this.currentMusicKey) return;
     this.stopMusic();
     this.currentMusicKey = key;
-    if (!key || !this.context || this.context.state !== 'running') return;
+    if (!key || !this.mediaUnlocked) return;
     const path = musicPath(key);
-    const music = new Audio(this.preloaded.get(path) ?? path);
+    const music = this.getMusicChannel();
+    music.src = this.preloaded.get(path) ?? path;
     music.loop = true;
     music.volume = this.musicVolume;
-    this.currentMusic = music;
     try {
       await music.play();
-    } catch {
-      this.currentMusic = null;
+    } catch (error: unknown) {
+      if (isPlaybackInterruption(error)) return;
       this.currentMusicKey = null;
       throw new Error('Background music could not start.');
     }
@@ -165,6 +177,7 @@ export class BrowserAudioService implements AudioService {
     }
     this.playing.clear();
     this.narration = null;
+    this.effects = null;
     for (const source of this.sources) {
       try {
         source.stop();
@@ -174,28 +187,68 @@ export class BrowserAudioService implements AudioService {
     }
     this.sources.clear();
     this.stopMusic();
+    this.music = null;
+    this.mediaUnlocked = false;
   }
 
   setNarrationVolume(value: number): void {
     this.narrationVolume = clampVolume(value);
+    if (this.narration) this.narration.volume = this.narrationVolume;
   }
   setEffectsVolume(value: number): void {
     this.effectsVolume = clampVolume(value);
   }
   setMusicVolume(value: number): void {
     this.musicVolume = clampVolume(value);
-    if (this.currentMusic) this.currentMusic.volume = this.musicVolume;
+    if (this.music) this.music.volume = this.musicVolume;
   }
 
   private assertUnlocked() {
-    if (!this.context || this.context.state !== 'running') {
+    if (!this.context || !this.mediaUnlocked) {
       throw new Error('Audio has not been unlocked.');
     }
   }
+  private getEffectsChannel(): HTMLAudioElement {
+    this.effects ??= new Audio(MEDIA_UNLOCK_PATH);
+    this.effects.preload = 'auto';
+    return this.effects;
+  }
+  private getMusicChannel(): HTMLAudioElement {
+    this.music ??= new Audio(MEDIA_UNLOCK_PATH);
+    this.music.preload = 'auto';
+    return this.music;
+  }
+  private getNarrationChannel(): HTMLAudioElement {
+    this.narration ??= new Audio(MEDIA_UNLOCK_PATH);
+    this.narration.preload = 'auto';
+    return this.narration;
+  }
+  private async primeMediaChannels(): Promise<void> {
+    const channels = [
+      this.getNarrationChannel(),
+      this.getEffectsChannel(),
+      this.getMusicChannel(),
+    ];
+    const targetVolumes = [
+      this.narrationVolume,
+      this.effectsVolume,
+      this.musicVolume,
+    ];
+    const starts = channels.map((channel) => {
+      channel.src = MEDIA_UNLOCK_PATH;
+      channel.volume = 0;
+      return channel.play();
+    });
+    await Promise.all(starts);
+    channels.forEach((channel, index) => {
+      channel.pause();
+      channel.currentTime = 0;
+      channel.volume = targetVolumes[index] ?? 1;
+    });
+  }
   private stopMusic() {
-    this.currentMusic?.pause();
-    if (this.currentMusic) this.currentMusic.currentTime = 0;
-    this.currentMusic = null;
+    this.music?.pause();
+    if (this.music) this.music.currentTime = 0;
     this.currentMusicKey = null;
   }
 }
