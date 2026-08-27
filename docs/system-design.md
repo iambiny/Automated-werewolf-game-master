@@ -576,6 +576,7 @@ Default preset:
 ```text
 SEER
 → GUARD
+→ HYBRID_WOLF (private status)
 → WEREWOLF
 → DEMON_WOLF
 → WITCH
@@ -675,6 +676,15 @@ Role command validation and queue eligibility must reject cursed Seer,
 Guard, Witch, and Fool actions. A cursed Witch's private turn must not expose
 the Werewolf victim or potion counts, and a cursed Hunter must not create a
 revenge-shot trigger when killed.
+
+Hybrid Wolf conversion is a distinct, higher-priority transition. An
+unprotected pack attack changes `VILLAGE/HYBRID_WOLF` to
+`WEREWOLF/WEREWOLF`, records `converted: true`, and preserves
+`originalRoleId: HYBRID_WOLF`. Guard protection blocks it. A same-target Demon
+Wolf curse is consumed without applying the generic cursed-role state; when
+Guard blocks the attack, the curse remains available. The configured Hybrid
+Wolf private status turn is always queued as DECOY, including after conversion,
+and a successful conversion adds a private pre-dawn notification.
 
 The Fool is a neutral third alignment (`teamId: 'FOOL'`). Team-only Seer
 investigation returns `Unclear role` for the Fool. Neutral Fool players are

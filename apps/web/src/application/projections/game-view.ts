@@ -63,6 +63,10 @@ export interface PrivateTurnView {
     canHealWerewolfVictim?: boolean;
     cursedPlayers?: PlayerSummary[];
     healPotionRemaining?: number;
+    hybridWolf?: {
+      converted: boolean;
+      player: PlayerSummary;
+    };
     poisonPotionRemaining?: number;
     werewolfVictim?: PlayerSummary;
   };

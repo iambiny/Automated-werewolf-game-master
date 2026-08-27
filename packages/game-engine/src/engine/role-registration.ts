@@ -61,6 +61,7 @@ export function registerRole(
     roleAssignments: {
       ...state.roleAssignments,
       [input.playerId]: {
+        ...(input.roleId === 'HYBRID_WOLF' ? { converted: false } : {}),
         currentRoleId: input.roleId,
         originalRoleId: input.roleId,
         teamId: role.teamId,

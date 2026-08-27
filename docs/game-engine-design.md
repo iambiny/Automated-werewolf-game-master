@@ -105,6 +105,7 @@ interface RoleAssignment {
   originalRoleId: RoleId;
   currentRoleId: RoleId;
   teamId: TeamId;
+  converted?: boolean;
 }
 ```
 
@@ -114,6 +115,11 @@ For MVP Demon Wolf, after curse success the player keeps their functional
 `currentRoleId`, changes to `teamId = WEREWOLF`, and joins the shared attack.
 The player receives a private notification and wakes with Werewolves while
 retaining their functional action.
+
+Hybrid Wolf uses a separate intrinsic conversion. It begins with
+`originalRoleId = currentRoleId = HYBRID_WOLF` and `teamId = VILLAGE`. After
+an unprotected Werewolf attack, it keeps the original role for history but
+sets `currentRoleId = WEREWOLF`, `teamId = WEREWOLF`, and `converted = true`.
 
 ---
 
@@ -497,20 +503,23 @@ Reference algorithm:
 3. Read Demon Wolf curse intent.
 4. Read Witch heal/poison effects.
 5. Determine whether Werewolf attack is prevented.
-6. If wolf attack prevented:
+6. If the target is an unconverted Hybrid Wolf and Guard did not protect it:
+     - replace ordinary wolf death with intrinsic Hybrid Wolf conversion
+     - consume a same-target Demon Wolf curse intent, if present
+7. Else if wolf attack prevented:
      - ordinary wolf death does not occur
      - curse does not succeed
      - Demon Wolf retains curse ability
-7. Else if wolf attack is not prevented AND valid curse intent exists:
+8. Else if wolf attack is not prevented AND valid curse intent exists:
      - replace ordinary wolf death with curse conversion
      - consume Demon Wolf curse ability
-8. Else:
+9. Else:
      - resolve ordinary wolf attack death
-9. Apply Witch heal interaction according to preset.
-10. Apply Witch poison.
-11. Determine final night deaths.
-12. Queue morning death triggers.
-13. Persist night resolution.
+10. Apply Witch heal interaction according to preset.
+11. Apply Witch poison.
+12. Determine final night deaths.
+13. Queue morning death triggers.
+14. Persist night resolution and any private Hybrid Wolf notification.
 ```
 
 Actual implementation should use explicit effect priority rather than tightly coupling every role in one function, but MVP scenario behavior must match this outcome.

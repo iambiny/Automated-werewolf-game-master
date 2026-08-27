@@ -15,6 +15,9 @@ export function toMvpPrivateTurnView(
   state: MatchState,
   rules: MvpRuleConfig,
 ): PrivateTurnView | null {
+  const conversionView = toHybridWolfConversionView(state);
+  if (conversionView) return conversionView;
+
   const base = toPrivateTurnView(state);
   if (!base) return base;
 
@@ -28,10 +31,19 @@ export function toMvpPrivateTurnView(
     cursedPlayers.length > 0
       ? { cursedPlayers: summarize(cursedPlayers) }
       : undefined;
+  const hybridWolfContext =
+    base.roleId === 'HYBRID_WOLF' ? getHybridWolfContext(state) : undefined;
+  const passiveContext =
+    cursedContext || hybridWolfContext
+      ? {
+          ...cursedContext,
+          ...(hybridWolfContext ? { hybridWolf: hybridWolfContext } : {}),
+        }
+      : undefined;
   if (base.mode === 'DECOY') {
     return {
       ...base,
-      ...(cursedContext ? { privateContext: cursedContext } : {}),
+      ...(passiveContext ? { privateContext: passiveContext } : {}),
     };
   }
 
@@ -140,6 +152,56 @@ export function toMvpPrivateTurnView(
     default:
       return withCurseNotice;
   }
+}
+
+function toHybridWolfConversionView(state: MatchState): PrivateTurnView | null {
+  if (
+    state.phase.type !== 'NIGHT' ||
+    state.phase.subphase !== 'RESOLUTION' ||
+    !state.nightContext?.resolution
+  ) {
+    return null;
+  }
+  const playerId = state.nightContext.resolution.transformedPlayerId;
+  if (!playerId) return null;
+  const assignment = state.roleAssignments[playerId];
+  const player = state.players[playerId];
+  if (
+    assignment?.originalRoleId !== 'HYBRID_WOLF' ||
+    assignment.converted !== true ||
+    !player ||
+    player.lifeState !== 'ALIVE'
+  ) {
+    return null;
+  }
+
+  return {
+    instruction: 'Privately notify the converted Hybrid Wolf.',
+    mode: 'DECOY',
+    privateContext: {
+      hybridWolf: { converted: true, player: summarizeOne(player) },
+    },
+    roleId: 'HYBRID_WOLF',
+  };
+}
+
+function getHybridWolfContext(
+  state: MatchState,
+): { converted: boolean; player: PlayerSummary } | undefined {
+  const entry = Object.entries(state.roleAssignments).find(
+    ([playerId, assignment]) =>
+      assignment.originalRoleId === 'HYBRID_WOLF' &&
+      state.players[playerId]?.lifeState === 'ALIVE',
+  );
+  if (!entry) return undefined;
+
+  const [playerId, assignment] = entry;
+  const player = state.players[playerId];
+  if (!player) return undefined;
+  return {
+    converted: assignment.converted === true,
+    player: summarizeOne(player),
+  };
 }
 
 function currentRoleHolderIds(state: MatchState, roleId: string): PlayerId[] {

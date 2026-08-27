@@ -1352,6 +1352,20 @@ p {
 .curse-notice p {
   margin-bottom: 0;
 }
+.hybrid-wolf-notice.is-village {
+  border-color: rgba(211, 181, 75, 0.78);
+  background: linear-gradient(
+    135deg,
+    rgba(30, 92, 58, 0.42),
+    rgba(115, 91, 21, 0.28)
+  );
+}
+.hybrid-wolf-notice.is-village strong {
+  color: #ffe28a;
+}
+.hybrid-wolf-notice.is-village p {
+  color: #bde9bc;
+}
 .all-ballots {
   display: flex;
   width: min(100%, 28rem);

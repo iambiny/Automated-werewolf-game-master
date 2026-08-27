@@ -9,7 +9,7 @@ export type NarrationKey =
   | 'VOTE_START';
 
 export type NightRoleId =
-  'DEMON_WOLF' | 'GUARD' | 'SEER' | 'WEREWOLF' | 'WITCH';
+  'DEMON_WOLF' | 'GUARD' | 'HYBRID_WOLF' | 'SEER' | 'WEREWOLF' | 'WITCH';
 export type RoleNarrationStage = 'ACTION' | 'SLEEP' | 'WAKE';
 export type EffectKey =
   | 'DEMON_CURSE'
@@ -258,7 +258,10 @@ export function roleNarrationCues(
   roleIds: readonly NightRoleId[],
 ): AudioCue[] {
   return roleIds.flatMap((roleId) =>
-    (['WAKE', 'ACTION', 'SLEEP'] as const).map((stage) => ({
+    (roleId === 'HYBRID_WOLF'
+      ? (['WAKE', 'SLEEP'] as const)
+      : (['WAKE', 'ACTION', 'SLEEP'] as const)
+    ).map((stage) => ({
       kind: 'ROLE_NARRATION' as const,
       locale,
       roleId,

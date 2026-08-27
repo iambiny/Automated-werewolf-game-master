@@ -21,6 +21,7 @@ const roleLabels: Record<SupportedLocale, Record<MvpRoleId, string>> = {
     DEMON_WOLF: 'Demon Wolf',
     FOOL: 'Fool',
     GUARD: 'Guard',
+    HYBRID_WOLF: 'Hybrid Wolf',
     HUNTER: 'Hunter',
     SEER: 'Seer',
     VILLAGER: 'Villager',
@@ -31,6 +32,7 @@ const roleLabels: Record<SupportedLocale, Record<MvpRoleId, string>> = {
     DEMON_WOLF: 'Sói Quỷ',
     FOOL: 'Kẻ Ngốc',
     GUARD: 'Bảo Vệ',
+    HYBRID_WOLF: 'Sói Lai',
     HUNTER: 'Thợ Săn',
     SEER: 'Tiên Tri',
     VILLAGER: 'Dân Làng',
@@ -305,6 +307,10 @@ const pageCopy: Record<string, string> = {
   ', you were cursed by the Demon Wolf.': ', bạn đã bị Sói Quỷ nguyền rủa.',
   'Your role ability is disabled. Wake with the Werewolves from now on; your new alignment is Werewolf.':
     'Khả năng của vai trò này đã bị vô hiệu hóa. Từ bây giờ, hãy thức dậy cùng Ma Sói; phe mới của bạn là Ma Sói.',
+  'You are still a member of the Village.':
+    'Bạn vẫn là thành viên của phe Dân Làng.',
+  'You were attacked by the Werewolves and have been converted into a Werewolf. From now on, you win with the Werewolf team.':
+    'Bạn đã bị Ma Sói tấn công và biến thành Ma Sói. Từ bây giờ, bạn chiến thắng cùng phe Ma Sói.',
   'Begin discussion': 'Bắt đầu thảo luận',
   'Village execution vote': 'Bỏ phiếu xử tử của làng',
   'The vote is tied. Only the tied players remain eligible.':
@@ -462,6 +468,7 @@ export function translateNightPrompt(
     en: {
       DEMON_WOLF: 'Will you spend the curse?',
       GUARD: 'Who will you protect tonight?',
+      HYBRID_WOLF: 'Check your current allegiance.',
       SEER: 'Whose truth will you reveal?',
       WEREWOLF: 'Choose the village target.',
       WITCH: 'Will you use a potion?',
@@ -470,6 +477,7 @@ export function translateNightPrompt(
     vi: {
       DEMON_WOLF: 'Bạn có dùng lời nguyền không?',
       GUARD: 'Đêm nay bạn sẽ bảo vệ ai?',
+      HYBRID_WOLF: 'Kiểm tra phe hiện tại của bạn.',
       SEER: 'Bạn sẽ soi thân phận của ai?',
       WEREWOLF: 'Chọn mục tiêu trong làng.',
       WITCH: 'Bạn có dùng bình thuốc không?',

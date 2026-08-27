@@ -661,6 +661,15 @@ export function GameApp() {
   async function advanceNight() {
     const controller = controllerRef.current;
     if (!controller) return;
+    const currentView = controller.getPublicView();
+    if (
+      currentView?.phase.type === 'NIGHT' &&
+      currentView.phase.subphase === 'RESOLUTION' &&
+      currentView.nightResolved
+    ) {
+      await finishNight(false);
+      return;
+    }
     setBusy(true);
     setNightError(null);
     const result = await controller.dispatch({
@@ -683,7 +692,7 @@ export function GameApp() {
     setScreen('NIGHT_WAKE');
   }
 
-  async function finishNight() {
+  async function finishNight(showConversionNotice = true) {
     const controller = controllerRef.current;
     if (!controller) return;
     setScreen('NIGHT_RESOLVING');
@@ -699,6 +708,17 @@ export function GameApp() {
         setNightError(resolved.error.message);
         return;
       }
+    }
+    const conversionTurn = controller.getPrivateTurnView();
+    if (
+      showConversionNotice &&
+      conversionTurn?.roleId === 'HYBRID_WOLF' &&
+      conversionTurn.privateContext?.hybridWolf?.converted
+    ) {
+      setBusy(false);
+      setPrivateTurn(conversionTurn);
+      setScreen('NIGHT_WAKE');
+      return;
     }
     const dawn = await controller.dispatch({ payload: {}, type: 'REACH_DAWN' });
     setBusy(false);
@@ -2175,8 +2195,13 @@ function NightTurnScreen({
           {nightGlyph(turn.roleId)}
         </div>
         <CursedRoleNotice locale={locale} turn={turn} />
-        <h2>Hold the night still.</h2>
-        <p>Complete this private pause, then close your eyes when prompted.</p>
+        <HybridWolfNotice locale={locale} turn={turn} />
+        {!turn.privateContext?.hybridWolf && <h2>Hold the night still.</h2>}
+        {!turn.privateContext?.hybridWolf && (
+          <p>
+            Complete this private pause, then close your eyes when prompted.
+          </p>
+        )}
         <button
           className="button button-primary night-action"
           disabled={busy}
@@ -2321,6 +2346,32 @@ function CursedRoleNotice({
           'Your role ability is disabled. Wake with the Werewolves from now on; your new alignment is Werewolf.',
         )}
       </p>
+    </div>
+  );
+}
+
+function HybridWolfNotice({
+  locale,
+  turn,
+}: {
+  locale: SupportedLocale;
+  turn: PrivateTurnView;
+}) {
+  const hybridWolf = turn.privateContext?.hybridWolf;
+  if (!hybridWolf) return null;
+
+  const message = hybridWolf.converted
+    ? 'You were attacked by the Werewolves and have been converted into a Werewolf. From now on, you win with the Werewolf team.'
+    : 'You are still a member of the Village.';
+  return (
+    <div
+      className={`curse-notice hybrid-wolf-notice ${
+        hybridWolf.converted ? 'is-converted' : 'is-village'
+      }`}
+      role="status"
+    >
+      <strong>{hybridWolf.player.displayName}</strong>
+      <p>{translateInterfaceText(locale, message)}</p>
     </div>
   );
 }
@@ -3241,6 +3292,7 @@ function roleGlyph(roleId: MvpRoleId): string {
     DEMON_WOLF: '◆',
     FOOL: '◇',
     GUARD: '⬟',
+    HYBRID_WOLF: '◐',
     HUNTER: '⌖',
     SEER: '◉',
     VILLAGER: '●',
@@ -3405,6 +3457,7 @@ function discussionTimerKey(view: PublicGameView): string {
 const NIGHT_AUDIO_ROLES: readonly NightRoleId[] = [
   'SEER',
   'GUARD',
+  'HYBRID_WOLF',
   'WEREWOLF',
   'DEMON_WOLF',
   'WITCH',
@@ -3439,6 +3492,7 @@ function audioCueForScreen(
   locale: SupportedLocale,
   roleId?: string,
 ): AudioCue | null {
+  if (roleId === 'HYBRID_WOLF' && screen === 'NIGHT_TURN') return null;
   if (
     (screen === 'NIGHT_WAKE' ||
       screen === 'NIGHT_TURN' ||

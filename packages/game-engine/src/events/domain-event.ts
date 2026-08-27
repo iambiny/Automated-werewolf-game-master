@@ -32,6 +32,7 @@ export type DomainEvent =
   | { type: 'VOTE_SKIPPED'; voterId: PlayerId }
   | { type: 'VOTE_RESOLVED'; result: VoteResolution }
   | { type: 'PLAYER_CURSED'; playerId: PlayerId }
+  | { type: 'HYBRID_WOLF_CONVERTED'; playerId: PlayerId }
   | { type: 'DEMON_WOLF_CURSE_CONSUMED'; playerId: PlayerId }
   | {
       type: 'HUNTER_SHOT_RESOLVED';

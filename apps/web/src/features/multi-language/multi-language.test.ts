@@ -11,6 +11,7 @@ import {
 describe('multi-language', () => {
   it('provides Vietnamese labels for every MVP role', () => {
     expect(getRoleLabels('vi')).toMatchObject({
+      HYBRID_WOLF: 'Sói Lai',
       SEER: 'Tiên Tri',
       WEREWOLF: 'Ma Sói',
       WITCH: 'Phù Thủy',

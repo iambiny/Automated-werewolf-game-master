@@ -10,6 +10,50 @@ import { toMvpPrivateTurnView } from './mvp-private-turn-view';
 const rules = toMvpRuleConfig(DEFAULT_SETUP_RULES);
 
 describe('MVP private night projection', () => {
+  it('shows the Hybrid Wolf private allegiance status before and after conversion', () => {
+    const village = createNightTestState('HYBRID_WOLF', 'DECOY');
+    const before = toMvpPrivateTurnView(village, rules);
+
+    const converted = structuredClone(village);
+    converted.roleAssignments['hybrid-wolf'] = {
+      converted: true,
+      currentRoleId: 'WEREWOLF',
+      originalRoleId: 'HYBRID_WOLF',
+      teamId: 'WEREWOLF',
+    };
+    converted.roleState['hybrid-wolf'] = {
+      data: { converted: true },
+      playerId: 'hybrid-wolf',
+      roleId: 'WEREWOLF',
+    };
+    const after = toMvpPrivateTurnView(converted, rules);
+
+    expect(before?.privateContext?.hybridWolf).toMatchObject({
+      converted: false,
+      player: { playerId: 'hybrid-wolf' },
+    });
+    expect(after?.privateContext?.hybridWolf).toMatchObject({
+      converted: true,
+      player: { playerId: 'hybrid-wolf' },
+    });
+
+    converted.phase = {
+      nightNumber: 1,
+      subphase: 'RESOLUTION',
+      type: 'NIGHT',
+    };
+    converted.nightContext!.resolution = {
+      attackPrevented: false,
+      curseOutcome: 'NONE',
+      deaths: [],
+      nightNumber: 1,
+      transformedPlayerId: 'hybrid-wolf',
+    };
+    expect(
+      toMvpPrivateTurnView(converted, rules)?.privateContext?.hybridWolf,
+    ).toMatchObject({ converted: true, player: { playerId: 'hybrid-wolf' } });
+  });
+
   it('shows Werewolves only eligible village targets', () => {
     const view = toMvpPrivateTurnView(createNightTestState('WEREWOLF'), rules);
 

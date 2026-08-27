@@ -42,6 +42,10 @@ export function createMvpRoleRuntimeState(
   roleId: MvpRoleId,
   rules: Pick<MvpRuleConfig, 'witch'>,
 ): RoleRuntimeState {
+  if (roleId === 'HYBRID_WOLF') {
+    return { data: { converted: false }, playerId, roleId };
+  }
+
   if (roleId === 'DEMON_WOLF') {
     return { data: { curseAvailable: true }, playerId, roleId };
   }

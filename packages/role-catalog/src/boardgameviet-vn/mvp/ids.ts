@@ -2,6 +2,7 @@ export const MVP_ROLE_IDS = [
   'VILLAGER',
   'SEER',
   'GUARD',
+  'HYBRID_WOLF',
   'WEREWOLF',
   'DEMON_WOLF',
   'WITCH',

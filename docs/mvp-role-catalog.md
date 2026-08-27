@@ -3,7 +3,7 @@
 **Document version:** 1.0  
 **Status:** MVP role rules source  
 **Ruleset:** BoardGameViet-compatible basic MVP preset with project-specific overrides  
-**MVP roles:** Villager, Guard, Seer, Witch, Werewolf, Hunter, Fool, Demon Wolf  
+**MVP roles:** Villager, Guard, Seer, Witch, Werewolf, Hybrid Wolf, Hunter, Fool, Demon Wolf
 **Public office:** Mayor / Trưởng làng  
 
 ---
@@ -35,10 +35,11 @@ Default MVP order:
 ```text
 1. Seer
 2. Guard
-3. Werewolf
-4. Demon Wolf
-5. Witch
-6. Night Resolution
+3. Hybrid Wolf (private status turn)
+4. Werewolf
+5. Demon Wolf
+6. Witch
+7. Night Resolution
 ```
 
 Functional roles continue to be narrated after death or ability exhaustion using DECOY turns when required by privacy rules.
@@ -239,6 +240,60 @@ Living holders of:
 ## Narration after death
 
 Werewolf group narration should continue according to ruleset privacy behavior while the game still contains the role/faction context. The engine should avoid revealing exact special-role death state from narrator omissions.
+
+---
+
+# 8.1 Hybrid Wolf / Cursed (Sói Lai / Kẻ Bán Sói)
+
+```ts
+id: 'HYBRID_WOLF'
+initial teamId: 'VILLAGE'
+night.order: 25
+```
+
+The Hybrid Wolf begins on the Village team. Neither the Hybrid Wolf nor the
+Werewolves know one another at setup. Its original role is retained for match
+history and replay.
+
+Every configured night includes a private Hybrid Wolf status turn, even after
+conversion. Before conversion it displays: “You are still a member of the
+Village.” A successful conversion is privately disclosed after night
+resolution, before dawn, and later status turns continue without changing the
+observable narration sequence.
+
+The status turn has localized Hybrid Wolf wake and sleep narration. The
+unconverted Village message uses a green-and-yellow visual treatment; the
+converted warning retains the red danger treatment.
+
+An unprotected Werewolf pack attack converts the living Hybrid Wolf instead of
+killing it:
+
+```ts
+originalRoleId = 'HYBRID_WOLF'
+currentRoleId = 'WEREWOLF'
+teamId = 'WEREWOLF'
+converted = true
+```
+
+The transition is permanent. From the following Werewolf turn, the converted
+player wakes with all living Werewolf-aligned players, participates in their
+shared target selection, and uses the Werewolf win condition.
+
+Guard protection prevents both the attack and conversion. Village execution,
+Witch poison, Hunter shot, and all other non-Werewolf death sources kill the
+unconverted Hybrid Wolf normally. They never cause conversion.
+
+If Demon Wolf curses the same pack target, intrinsic Hybrid Wolf conversion
+takes priority. The target becomes a normal Werewolf (not a cursed functional
+role), while Demon Wolf's curse is consumed. If Guard blocks that attack,
+neither conversion occurs and Demon Wolf retains the curse.
+
+Seer results are state-dependent:
+
+| State | TEAM scan | ROLE scan |
+|---|---|---|
+| Before conversion | `VILLAGE` | `HYBRID_WOLF` |
+| After conversion | `WEREWOLF` | `WEREWOLF` |
 
 ---
 
@@ -635,6 +690,7 @@ WEREWOLF
 |---|---|---|---|
 | Seer | ACTIVE | DECOY | N/A |
 | Guard | ACTIVE | DECOY | N/A |
+| Hybrid Wolf | DECOY status | DECOY | DECOY status after conversion |
 | Werewolf group | ACTIVE if eligible wolves exist | narrator behavior follows faction privacy | N/A |
 | Demon Wolf | ACTIVE if curse available | DECOY | DECOY |
 | Witch | ACTIVE if valid action exists | DECOY | DECOY |
@@ -651,6 +707,7 @@ export const MVP_ROLE_IDS = [
   'VILLAGER',
   'SEER',
   'GUARD',
+  'HYBRID_WOLF',
   'WEREWOLF',
   'DEMON_WOLF',
   'WITCH',
@@ -681,6 +738,14 @@ export const mvpRoleCatalog = {
     teamId: 'VILLAGE',
     night: {
       order: 20,
+      alwaysNarrateIfInComposition: true,
+    },
+  },
+
+  HYBRID_WOLF: {
+    teamId: 'VILLAGE',
+    night: {
+      order: 25,
       alwaysNarrateIfInComposition: true,
     },
   },

@@ -2,7 +2,10 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { BrowserAudioService } from './browser-audio-service';
+import {
+  BrowserAudioService,
+  roleNarrationCues,
+} from './browser-audio-service';
 
 class FakeOscillator extends EventTarget {
   frequency = { value: 0 };
@@ -126,6 +129,43 @@ describe('BrowserAudioService', () => {
     expect(FakeAudio.instances).toHaveLength(3);
     expect(FakeAudio.instances[0]?.src).toBe('/audio/voice/vi/seer-action.wav');
     expect(FakeAudio.instances[1]?.src).toBe('/audio/effects/seer_vision.wav');
+  });
+
+  it('uses wake and sleep narration without an action clip for Hybrid Wolf', async () => {
+    expect(roleNarrationCues('en', ['HYBRID_WOLF'])).toEqual([
+      {
+        kind: 'ROLE_NARRATION',
+        locale: 'en',
+        roleId: 'HYBRID_WOLF',
+        stage: 'WAKE',
+      },
+      {
+        kind: 'ROLE_NARRATION',
+        locale: 'en',
+        roleId: 'HYBRID_WOLF',
+        stage: 'SLEEP',
+      },
+    ]);
+
+    const service = new BrowserAudioService();
+    await service.unlock();
+    await service.play({
+      kind: 'ROLE_NARRATION',
+      locale: 'vi',
+      roleId: 'HYBRID_WOLF',
+      stage: 'WAKE',
+    });
+    await service.play({
+      kind: 'ROLE_NARRATION',
+      locale: 'en',
+      roleId: 'HYBRID_WOLF',
+      stage: 'SLEEP',
+    });
+
+    expect(FakeAudio.instances[0]?.srcHistory.slice(-2)).toEqual([
+      '/audio/voice/vi/hybrid_wolf-wake.wav',
+      '/audio/voice/en/hybrid_wolf-sleep.mp3',
+    ]);
   });
 
   it('uses distinct narration for mayor and execution voting', async () => {

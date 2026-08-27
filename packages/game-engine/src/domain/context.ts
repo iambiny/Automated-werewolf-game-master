@@ -11,7 +11,7 @@ export interface NightTurn {
 
 export interface NightResolutionResult {
   attackPrevented: boolean;
-  curseOutcome: 'NONE' | 'FAILED' | 'SUCCEEDED';
+  curseOutcome: 'NONE' | 'FAILED' | 'SUCCEEDED' | 'CONSUMED';
   deaths: Array<{ causes: DeathCause[]; playerId: PlayerId }>;
   nightNumber: number;
   transformedPlayerId?: PlayerId;

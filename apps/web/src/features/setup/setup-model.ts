@@ -40,6 +40,7 @@ export const DEFAULT_ROLE_COUNTS: RoleCounts = {
   DEMON_WOLF: 0,
   FOOL: 0,
   GUARD: 1,
+  HYBRID_WOLF: 0,
   HUNTER: 1,
   SEER: 1,
   VILLAGER: 2,
