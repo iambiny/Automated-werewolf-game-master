@@ -10,6 +10,7 @@ import type { MatchState } from '../domain/match-state';
 import type { DomainEvent, VoteResolution } from '../events/domain-event';
 import { applyDeaths } from './death';
 import { FOOL_NO_VOTE_FLAG } from './fool';
+import { SILENCED_FLAG } from './silencer';
 import { domainError, type EngineResult } from './result';
 
 export interface VoteBallot {
@@ -291,10 +292,15 @@ function startVotingContext(
   type: 'MAYOR_ELECTION' | 'DAY_EXECUTION',
 ): EngineResult {
   const livingPlayerIds = getLivingPlayerIds(state);
-  const eligibleVoterIds = livingPlayerIds.filter(
-    (playerId) =>
-      !state.players[playerId]?.publicFlags.includes(FOOL_NO_VOTE_FLAG),
-  );
+  const eligibleVoterIds = livingPlayerIds
+    .filter(
+      (playerId) =>
+        !state.players[playerId]?.publicFlags.includes(FOOL_NO_VOTE_FLAG),
+    )
+    .filter(
+      (playerId) =>
+        !state.players[playerId]?.publicFlags.includes(SILENCED_FLAG),
+    );
   const nextState: MatchState = {
     ...state,
     votingContext: {

@@ -13,6 +13,7 @@ describe('multi-language', () => {
     expect(getRoleLabels('vi')).toMatchObject({
       HYBRID_WOLF: 'Sói Lai',
       SEER: 'Tiên Tri',
+      SILENCER: 'Kẻ Câm Lặng',
       WEREWOLF: 'Ma Sói',
       WITCH: 'Phù Thủy',
     });
@@ -27,6 +28,9 @@ describe('multi-language', () => {
   it('translates player-facing narration and phase labels', () => {
     expect(translateNightPrompt('vi', 'GUARD')).toBe(
       'Đêm nay bạn sẽ bảo vệ ai?',
+    );
+    expect(translateNightPrompt('vi', 'SILENCER')).toBe(
+      'Đêm nay bạn có muốn làm ai đó câm lặng không?',
     );
     expect(translatePhase('vi', 'NIGHT', 2)).toBe('Đêm 2');
   });
@@ -45,6 +49,9 @@ describe('multi-language', () => {
     expect(translateInterfaceText('vi', 'End role and sleep')).toBe(
       'Kết thúc vai trò và đi ngủ',
     );
+    expect(
+      translateInterfaceText('vi', 'Gently touch the player you selected.'),
+    ).toBe('Hãy nhẹ nhàng chạm vào người chơi bạn đã chọn.');
     expect(translateInterfaceText('vi', 'Use healing potion')).toBe(
       'Dùng bình thuốc cứu',
     );

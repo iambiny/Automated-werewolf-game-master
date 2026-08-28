@@ -37,6 +37,12 @@ export interface ProtectEffect extends EffectBase {
   visibility: 'INTERNAL';
 }
 
+export interface SilenceEffect extends EffectBase {
+  sourceRoleId: 'SILENCER';
+  type: 'SILENCE';
+  visibility: 'INTERNAL';
+}
+
 export interface WerewolfAttackEffect extends EffectBase {
   sourceRoleId: 'WEREWOLF';
   type: 'WEREWOLF_ATTACK';
@@ -75,6 +81,7 @@ export type GameEffect =
   | InvestigationResultEffect
   | PoisonEffect
   | ProtectEffect
+  | SilenceEffect
   | WerewolfAttackEffect;
 
 export type GameTrigger =

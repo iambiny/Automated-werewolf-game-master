@@ -887,20 +887,29 @@ Recommended MVP core:
 4. **Guard**
    - protect one player.
 
-5. **Witch**
+5. **Silencer**
+   - may select one living player each night, including themself;
+   - cannot select the same player on consecutive nights;
+   - the selected player cannot speak or vote during the next Day Phase, but
+     can gesture and remains eligible for nomination and execution;
+   - silence applies after a successful selection even if the Silencer dies,
+     has no effect if the target dies that night, and expires at nightfall.
+
+6. **Witch**
    - heal/poison with consumable resources.
 
-6. **Hunter**
+7. **Hunter**
    - death-triggered shot where allowed by rules.
 
-7. **Fool**
+8. **Fool**
    - neutral third alignment;
    - no night action;
    - configurable execution behavior: die normally, survive the first
      execution and lose the vote, or win immediately when selected;
    - does not count as Village opposition for Werewolf parity.
 
-These six exercise the engine across passive, group action, information, protection, consumables, and death-trigger behavior.
+These roles exercise the engine across passive, group action, information,
+protection, temporary Day restrictions, consumables, and death-trigger behavior.
 
 ## 15.4 Expansion-ready roles
 
@@ -914,7 +923,6 @@ Architecture should be tested against conceptual support for:
 - Thief;
 - Piper;
 - role-blocker;
-- silencer;
 - vote modifier;
 - resurrection role.
 

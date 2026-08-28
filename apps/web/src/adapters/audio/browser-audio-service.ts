@@ -9,7 +9,13 @@ export type NarrationKey =
   | 'VOTE_START';
 
 export type NightRoleId =
-  'DEMON_WOLF' | 'GUARD' | 'HYBRID_WOLF' | 'SEER' | 'WEREWOLF' | 'WITCH';
+  | 'DEMON_WOLF'
+  | 'GUARD'
+  | 'HYBRID_WOLF'
+  | 'SEER'
+  | 'SILENCER'
+  | 'WEREWOLF'
+  | 'WITCH';
 export type RoleNarrationStage = 'ACTION' | 'SLEEP' | 'WAKE';
 export type EffectKey =
   | 'DEMON_CURSE'

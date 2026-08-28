@@ -9,6 +9,7 @@ export default tseslint.config(
   {
     ignores: [
       '**/.next/**',
+      '**/.venv*/**',
       '**/coverage/**',
       '**/dist/**',
       '**/next-env.d.ts',

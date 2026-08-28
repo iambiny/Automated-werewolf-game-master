@@ -8,6 +8,7 @@ import {
 import {
   submitDemonWolfCurseDecision,
   submitGuardProtection,
+  submitSilencerTarget,
   submitWerewolfAttack,
 } from '@werewolf/game-engine';
 import { DEFAULT_SETUP_RULES, toMvpRuleConfig } from '../setup/setup-model';
@@ -223,5 +224,26 @@ describe('MVP private night projection', () => {
       poisonPotionRemaining: 1,
     });
     expect(view?.privateContext?.werewolfVictim).toBeUndefined();
+  });
+
+  it('shows Silencer targets and the private touch handoff after selection', () => {
+    const state = createNightTestState('SILENCER');
+    const before = toMvpPrivateTurnView(state, rules);
+
+    expect(before?.validTargets?.map((target) => target.playerId)).toContain(
+      'silencer',
+    );
+
+    const submitted = submitSilencerTarget(state, {
+      actionId: 'silence-villager',
+      targetPlayerId: 'villager',
+    });
+    expect(submitted.ok).toBe(true);
+    if (!submitted.ok) throw new Error(submitted.error.message);
+
+    expect(
+      toMvpPrivateTurnView(submitted.state, rules)?.privateContext
+        ?.silenceTarget,
+    ).toMatchObject({ displayName: 'Villager', playerId: 'villager' });
   });
 });

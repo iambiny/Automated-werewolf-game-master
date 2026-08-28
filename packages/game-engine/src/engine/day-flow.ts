@@ -5,6 +5,7 @@ import type { RoleCatalog } from '../domain/role-definition';
 import type { DomainEvent } from '../events/domain-event';
 import { buildNightQueue } from './night-queue';
 import { domainError, type EngineResult } from './result';
+import { SILENCED_FLAG } from './silencer';
 
 export function announcePendingDeaths(state: MatchState): EngineResult {
   if (
@@ -69,6 +70,17 @@ export function startNextNight(
     previousPhase: state.phase,
     type: 'PHASE_CHANGED',
   };
+  const players = Object.fromEntries(
+    Object.entries(state.players).map(([playerId, player]) => [
+      playerId,
+      {
+        ...player,
+        publicFlags: player.publicFlags.filter(
+          (flag) => flag !== SILENCED_FLAG,
+        ),
+      },
+    ]),
+  );
   return {
     events: [event],
     ok: true,
@@ -87,6 +99,7 @@ export function startNextNight(
       pendingEffects: [],
       phase: nextPhase,
       phaseId,
+      players,
       votingContext: undefined,
     },
   };

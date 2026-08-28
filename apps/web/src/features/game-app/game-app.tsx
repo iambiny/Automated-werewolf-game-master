@@ -582,6 +582,13 @@ export function GameApp() {
           type: action === 'PASS' ? 'PASS_NIGHT_TURN' : 'SUBMIT_GUARD_TARGET',
         };
         break;
+      case 'SILENCER':
+        command = {
+          payload: { actionId, targetPlayerId: targetPlayerId ?? '' },
+          type:
+            action === 'PASS' ? 'PASS_NIGHT_TURN' : 'SUBMIT_SILENCER_TARGET',
+        };
+        break;
       case 'WEREWOLF':
         command = {
           payload: {
@@ -639,6 +646,7 @@ export function GameApp() {
     setPrivateTurn(nextPrivate);
     if (
       (privateTurn.roleId === 'SEER' && action !== 'PASS') ||
+      (privateTurn.roleId === 'SILENCER' && action !== 'PASS') ||
       (privateTurn.roleId === 'DEMON_WOLF' && action === 'CURSE')
     ) {
       setScreen('NIGHT_RESULT');
@@ -1377,11 +1385,13 @@ export function GameApp() {
           <DiscussionScreen
             error={error}
             initialTimer={discussionTimer}
+            locale={locale}
             onChange={(timer) => {
               setDiscussionTimer(timer);
               void saveDiscussionTimer(timer);
             }}
             onEnd={() => void beginDayVote()}
+            players={resumeView?.players ?? []}
           />
         )}
         {screen === 'DAY_VOTE' && resumeView?.voting && (
@@ -2218,6 +2228,7 @@ function NightTurnScreen({
   const isTargetRole =
     turn.roleId === 'SEER' ||
     turn.roleId === 'GUARD' ||
+    turn.roleId === 'SILENCER' ||
     turn.roleId === 'WEREWOLF';
 
   return (
@@ -2270,6 +2281,15 @@ function NightTurnScreen({
               No attack
             </button>
           )}
+          {turn.roleId === 'SILENCER' && (
+            <button
+              className="button button-secondary"
+              disabled={busy}
+              onClick={() => onSubmit('PASS')}
+            >
+              Do not silence anyone
+            </button>
+          )}
           <button
             className="button button-primary"
             disabled={!selected || busy}
@@ -2309,9 +2329,14 @@ function NightTurnScreen({
         </button>
       )}
 
-      {!['SEER', 'GUARD', 'WEREWOLF', 'DEMON_WOLF', 'WITCH'].includes(
-        turn.roleId,
-      ) && (
+      {![
+        'SEER',
+        'GUARD',
+        'SILENCER',
+        'WEREWOLF',
+        'DEMON_WOLF',
+        'WITCH',
+      ].includes(turn.roleId) && (
         <button
           className="button button-primary night-action"
           disabled={busy}
@@ -2518,6 +2543,18 @@ function NightResultScreen({
     );
   }
 
+  if (turn.privateContext?.silenceTarget) {
+    return (
+      <SilencerHandoffScreen
+        locale={locale}
+        onAcknowledge={onAcknowledge}
+        roleId={turn.roleId}
+        target={turn.privateContext.silenceTarget}
+        timeoutSeconds={timeoutSeconds}
+      />
+    );
+  }
+
   const result = turn.privateResult;
   const target = turn.validTargets?.find(
     (player) => player.playerId === result?.targetPlayerId,
@@ -2545,6 +2582,50 @@ function NightResultScreen({
         onClick={onAcknowledge}
       >
         Hide result and sleep
+      </button>
+    </section>
+  );
+}
+
+function SilencerHandoffScreen({
+  locale,
+  onAcknowledge,
+  roleId,
+  target,
+  timeoutSeconds,
+}: {
+  locale: SupportedLocale;
+  onAcknowledge: () => void;
+  roleId: string;
+  target: PlayerSummary;
+  timeoutSeconds: number;
+}) {
+  const remaining = useDeadlineCountdown(timeoutSeconds, onAcknowledge);
+  return (
+    <section className="night-result panel-enter">
+      <NightTurnHeader remaining={remaining} roleId={roleId} />
+      <div className="result-eye" aria-hidden="true">
+        🤫
+      </div>
+      <p className="eyebrow">For the Silencer only</p>
+      <h2>{target.displayName}</h2>
+      <div className="result-value">
+        {translateInterfaceText(
+          locale,
+          'Gently touch the player you selected.',
+        )}
+      </div>
+      <p>
+        {translateInterfaceText(
+          locale,
+          'They know they are silenced, but not who selected them.',
+        )}
+      </p>
+      <button
+        className="button button-primary night-action"
+        onClick={onAcknowledge}
+      >
+        {translateInterfaceText(locale, 'End role and sleep')}
       </button>
     </section>
   );
@@ -2943,15 +3024,22 @@ function MayorSuccessorScreen({
 function DiscussionScreen({
   error,
   initialTimer,
+  locale,
   onChange,
   onEnd,
+  players,
 }: {
   error: string | null;
   initialTimer: DeadlineTimerSnapshot;
+  locale: SupportedLocale;
   onChange: (timer: DeadlineTimerSnapshot) => void;
   onEnd: () => void;
+  players: PublicGameView['players'];
 }) {
   const timer = useDiscussionTimer(initialTimer, onChange, onEnd);
+  const silencedPlayers = players.filter((player) =>
+    player.publicFlags.includes('SILENCED'),
+  );
   return (
     <section className="discussion-screen panel-enter">
       <p className="eyebrow">Day discussion</p>
@@ -2968,6 +3056,20 @@ function DiscussionScreen({
       <p>
         {timer.running ? 'The village has the floor.' : 'Discussion is paused.'}
       </p>
+      {silencedPlayers.map((player) => (
+        <div className="curse-notice" key={player.playerId} role="status">
+          <strong>
+            {player.displayName} ·{' '}
+            {translateInterfaceText(locale, 'Silenced for today')}
+          </strong>
+          <p>
+            {translateInterfaceText(
+              locale,
+              'Cannot speak or vote; may gesture and can still be nominated.',
+            )}
+          </p>
+        </div>
+      ))}
       <div className="timer-controls">
         <button className="button button-secondary" onClick={timer.toggle}>
           {timer.running ? 'Pause' : 'Resume'}
@@ -3366,6 +3468,7 @@ function roleGlyph(roleId: MvpRoleId): string {
     HYBRID_WOLF: '◐',
     HUNTER: '⌖',
     SEER: '◉',
+    SILENCER: '◌',
     VILLAGER: '●',
     WEREWOLF: '▲',
     WITCH: '✦',
@@ -3528,6 +3631,7 @@ function discussionTimerKey(view: PublicGameView): string {
 const NIGHT_AUDIO_ROLES: readonly NightRoleId[] = [
   'SEER',
   'GUARD',
+  'SILENCER',
   'HYBRID_WOLF',
   'WEREWOLF',
   'DEMON_WOLF',

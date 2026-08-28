@@ -97,6 +97,38 @@ export function toMvpPrivateTurnView(
         ),
       };
     }
+    case 'SILENCER': {
+      const lastTargetId = [...(state.nightContext?.effects ?? [])]
+        .reverse()
+        .find((effect) => effect.type === 'SILENCE')?.targetPlayerIds[0];
+      const lastTarget = lastTargetId ? state.players[lastTargetId] : undefined;
+      const previousTargets = new Set(
+        actorIds
+          .map((playerId) => {
+            const data = state.roleState[playerId]?.data;
+            return data?.lastSilencedNightNumber === state.cycle - 1
+              ? data.lastSilencedPlayerId
+              : undefined;
+          })
+          .filter((value): value is PlayerId => typeof value === 'string'),
+      );
+      return {
+        ...withCurseNotice,
+        ...(lastTarget
+          ? {
+              privateContext: {
+                ...cursedContext,
+                silenceTarget: summarizeOne(lastTarget),
+              },
+            }
+          : {}),
+        validTargets: summarize(
+          livingPlayers.filter(
+            (player) => !previousTargets.has(player.playerId),
+          ),
+        ),
+      };
+    }
     case 'WEREWOLF':
       return {
         ...withCurseNotice,

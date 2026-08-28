@@ -43,6 +43,7 @@ export const DEFAULT_ROLE_COUNTS: RoleCounts = {
   HYBRID_WOLF: 0,
   HUNTER: 1,
   SEER: 1,
+  SILENCER: 0,
   VILLAGER: 2,
   WEREWOLF: 2,
   WITCH: 1,

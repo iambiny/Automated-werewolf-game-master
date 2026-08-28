@@ -8,6 +8,7 @@ export type {
   InvestigationResultEffect,
   PoisonEffect,
   ProtectEffect,
+  SilenceEffect,
   WerewolfAttackEffect,
 } from './domain/action';
 export type {
@@ -104,6 +105,8 @@ export {
 } from './engine/fool';
 export { submitGuardProtection } from './engine/guard';
 export type { SubmitGuardProtectionInput } from './engine/guard';
+export { SILENCED_FLAG, submitSilencerTarget } from './engine/silencer';
+export type { SubmitSilencerTargetInput } from './engine/silencer';
 export { submitHunterShot } from './engine/hunter';
 export type {
   HunterShotResolutionRules,

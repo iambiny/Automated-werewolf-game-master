@@ -11,6 +11,7 @@ import { domainError, type EngineResult } from './result';
 import { CURSED_ROLE_STATE_KEY } from './curse';
 import { evaluateDemonWolfCurse } from './demon-wolf';
 import { getPendingHybridWolfConversionId } from './hybrid-wolf';
+import { SILENCED_FLAG } from './silencer';
 
 export function resolveNight(
   state: MatchState,
@@ -45,6 +46,7 @@ export function resolveNight(
   const protectedIds = targetSet(context.effects, 'PROTECT');
   const healedIds = targetSet(context.effects, 'HEAL');
   const poisonIds = targetSet(context.effects, 'POISON');
+  const silencedIds = targetSet(context.effects, 'SILENCE');
   const curseEvaluation = evaluateDemonWolfCurse(state);
   const curseMatchesAttack =
     Boolean(attackTargetId) && curse?.targetPlayerIds[0] === attackTargetId;
@@ -120,6 +122,22 @@ export function resolveNight(
   );
   nextState = deathResolution.state;
   events.push(...deathResolution.events);
+
+  for (const playerId of silencedIds) {
+    const player = nextState.players[playerId];
+    if (!player || player.lifeState !== 'ALIVE') continue;
+    nextState = {
+      ...nextState,
+      players: {
+        ...nextState.players,
+        [playerId]: {
+          ...player,
+          publicFlags: [...new Set([...player.publicFlags, SILENCED_FLAG])],
+        },
+      },
+    };
+    events.push({ playerId, type: 'SILENCE_APPLIED' });
+  }
 
   const result: NightResolutionResult = {
     attackPrevented,

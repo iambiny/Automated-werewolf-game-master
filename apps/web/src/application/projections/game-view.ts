@@ -72,6 +72,7 @@ export interface PrivateTurnView {
       player: PlayerSummary;
     };
     poisonPotionRemaining?: number;
+    silenceTarget?: PlayerSummary;
     werewolfVictim?: PlayerSummary;
   };
   privateResult?: {

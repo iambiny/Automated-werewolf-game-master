@@ -3,7 +3,7 @@
 **Document version:** 1.0  
 **Status:** MVP role rules source  
 **Ruleset:** BoardGameViet-compatible basic MVP preset with project-specific overrides  
-**MVP roles:** Villager, Guard, Seer, Witch, Werewolf, Hybrid Wolf, Hunter, Fool, Demon Wolf
+**MVP roles:** Villager, Guard, Silencer, Seer, Witch, Werewolf, Hybrid Wolf, Hunter, Fool, Demon Wolf
 **Public office:** Mayor / Trưởng làng  
 
 ---
@@ -35,11 +35,12 @@ Default MVP order:
 ```text
 1. Seer
 2. Guard
-3. Werewolf
-4. Demon Wolf
-5. Hybrid Wolf (private status turn)
-6. Witch
-7. Night Resolution
+3. Silencer
+4. Werewolf
+5. Demon Wolf
+6. Hybrid Wolf (private status turn)
+7. Witch
+8. Night Resolution
 ```
 
 Functional roles continue to be narrated after death or ability exhaustion using DECOY turns when required by privacy rules.
@@ -129,6 +130,7 @@ Show exact current role:
 ```text
 Villager
 Guard
+Silencer
 Seer
 Witch
 Werewolf
@@ -196,6 +198,36 @@ interface GuardRules {
 ```
 
 Use the selected basic preset values.
+
+---
+
+# 7.1 Silencer / Kẻ câm lặng
+
+```ts
+id: 'SILENCER'
+teamId: 'VILLAGE'
+night.order: 25
+```
+
+## Night behavior
+
+- Wakes every night while alive and may pass or select one living player.
+- May select themself.
+- Cannot select the same player on consecutive nights. Passing a night breaks
+  the consecutive-night sequence.
+- After selection, the private screen instructs the Silencer to gently touch
+  the target. The target learns only that they were silenced.
+
+## Effect
+
+The selection creates a deferred `SILENCE` effect. After all night deaths are
+resolved, a surviving target receives the public `SILENCED` flag for the next
+Day Phase. The effect remains valid if the Silencer dies after selecting, but
+is discarded if the target dies during that night.
+
+During that Day Phase the target cannot speak or vote. They may gesture, remain
+eligible for nomination and execution, keep their role/team, and retain any
+night ability. The flag is removed when the following night begins.
 
 ---
 
@@ -713,6 +745,7 @@ WEREWOLF
 |---|---|---|---|
 | Seer | ACTIVE | DECOY | N/A |
 | Guard | ACTIVE | DECOY | N/A |
+| Silencer | ACTIVE | DECOY | N/A |
 | Hybrid Wolf | DECOY status | DECOY | DECOY status after conversion |
 | Werewolf group | ACTIVE if eligible wolves exist | narrator behavior follows faction privacy | N/A |
 | Demon Wolf | ACTIVE if curse available | DECOY | DECOY |
@@ -730,6 +763,7 @@ export const MVP_ROLE_IDS = [
   'VILLAGER',
   'SEER',
   'GUARD',
+  'SILENCER',
   'HYBRID_WOLF',
   'WEREWOLF',
   'DEMON_WOLF',
@@ -761,6 +795,14 @@ export const mvpRoleCatalog = {
     teamId: 'VILLAGE',
     night: {
       order: 20,
+      alwaysNarrateIfInComposition: true,
+    },
+  },
+
+  SILENCER: {
+    teamId: 'VILLAGE',
+    night: {
+      order: 25,
       alwaysNarrateIfInComposition: true,
     },
   },
@@ -873,6 +915,13 @@ interface MvpRulePreset {
 - blocks wolf target;
 - target rules enforced;
 - dead Guard becomes DECOY.
+
+## Silencer
+- can target themself or any other living player;
+- rejects the prior night's selected target;
+- survives source death, but not target death, during resolution;
+- excludes the target from Day voting without excluding nomination;
+- expires when the next night begins.
 
 ## Werewolf
 - shared selection;

@@ -24,6 +24,7 @@ const roleLabels: Record<SupportedLocale, Record<MvpRoleId, string>> = {
     HYBRID_WOLF: 'Hybrid Wolf',
     HUNTER: 'Hunter',
     SEER: 'Seer',
+    SILENCER: 'Silencer',
     VILLAGER: 'Villager',
     WEREWOLF: 'Werewolf',
     WITCH: 'Witch',
@@ -35,6 +36,7 @@ const roleLabels: Record<SupportedLocale, Record<MvpRoleId, string>> = {
     HYBRID_WOLF: 'Sói Lai',
     HUNTER: 'Thợ Săn',
     SEER: 'Tiên Tri',
+    SILENCER: 'Kẻ Câm Lặng',
     VILLAGER: 'Dân Làng',
     WEREWOLF: 'Ma Sói',
     WITCH: 'Phù Thủy',
@@ -280,6 +282,15 @@ const pageCopy: Record<string, string> = {
   Confirm: 'Xác nhận',
   target: 'mục tiêu',
   'Save the curse': 'Giữ lại lời nguyền',
+  'Do not silence anyone': 'Không làm ai câm lặng',
+  'For the Silencer only': 'Chỉ dành cho Kẻ Câm Lặng',
+  'Gently touch the player you selected.':
+    'Hãy nhẹ nhàng chạm vào người chơi bạn đã chọn.',
+  'They know they are silenced, but not who selected them.':
+    'Họ biết mình bị câm lặng, nhưng không biết ai đã chọn họ.',
+  'Silenced for today': 'Bị câm lặng trong hôm nay',
+  'Cannot speak or vote; may gesture and can still be nominated.':
+    'Không được nói hoặc bỏ phiếu; vẫn có thể ra hiệu và vẫn có thể bị đề cử.',
   left: 'còn lại',
   'Heal the Werewolf victim without revealing their name.':
     'Cứu nạn nhân của Ma Sói mà không tiết lộ tên.',
@@ -479,6 +490,7 @@ export function translateNightPrompt(
       GUARD: 'Who will you protect tonight?',
       HYBRID_WOLF: 'Check your current allegiance.',
       SEER: 'Whose truth will you reveal?',
+      SILENCER: 'Do you want to silence someone tonight?',
       WEREWOLF: 'Choose the village target.',
       WITCH: 'Will you use a potion?',
       default: 'Complete your night action.',
@@ -488,6 +500,7 @@ export function translateNightPrompt(
       GUARD: 'Đêm nay bạn sẽ bảo vệ ai?',
       HYBRID_WOLF: 'Kiểm tra phe hiện tại của bạn.',
       SEER: 'Bạn sẽ soi thân phận của ai?',
+      SILENCER: 'Đêm nay bạn có muốn làm ai đó câm lặng không?',
       WEREWOLF: 'Chọn mục tiêu trong làng.',
       WITCH: 'Bạn có dùng bình thuốc không?',
       default: 'Hoàn thành hành động đêm của bạn.',

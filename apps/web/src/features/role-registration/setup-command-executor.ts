@@ -21,6 +21,7 @@ import {
   submitHunterShot,
   submitNightPass,
   submitSeerInspection,
+  submitSilencerTarget,
   submitWerewolfAttack,
   submitWitchHeal,
   submitWitchPoison,
@@ -102,6 +103,11 @@ function executeSetupCommand(
         state,
         command.payload as TargetActionPayload,
         rules.guard,
+      );
+    case 'SUBMIT_SILENCER_TARGET':
+      return submitSilencerTarget(
+        state,
+        command.payload as TargetActionPayload,
       );
     case 'SUBMIT_WEREWOLF_TARGET': {
       const payload = command.payload as {
