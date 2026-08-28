@@ -27,6 +27,10 @@ yarn test:e2e
 yarn build
 ```
 
+ESLint excludes repository-local Python virtual environments matching
+`.venv*` (including `.venv-voice`). These directories contain generated and
+third-party JavaScript from Python packages and are not application source.
+
 After deployment, verify the real HTTPS response:
 
 ```sh

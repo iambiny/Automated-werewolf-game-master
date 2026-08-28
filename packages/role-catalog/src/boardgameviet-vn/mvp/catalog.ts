@@ -51,6 +51,21 @@ export const mvpRoleCatalog = {
     shouldNarrateTurn: narrateWhenConfigured('GUARD'),
     teamId: 'VILLAGE',
   },
+  SILENCER: {
+    canPerformAction: hasLivingHolder,
+    description:
+      'Silences one living player for the following Day Phase, preventing speech and voting.',
+    hasPhysicalCard: true,
+    id: 'SILENCER',
+    name: 'Silencer / Kẻ câm lặng',
+    night: {
+      activation: 'EVERY_NIGHT',
+      narratorAlwaysCallsIfInComposition: true,
+      order: 25,
+    },
+    shouldNarrateTurn: narrateWhenConfigured('SILENCER'),
+    teamId: 'VILLAGE',
+  },
   HYBRID_WOLF: {
     ...passiveRoleBehavior,
     description:

@@ -17,6 +17,7 @@ const ROLE_TEAMS: Record<MvpRoleId, RoleAssignment['teamId']> = {
   HYBRID_WOLF: 'VILLAGE',
   HUNTER: 'VILLAGE',
   SEER: 'VILLAGE',
+  SILENCER: 'VILLAGE',
   VILLAGER: 'VILLAGE',
   WEREWOLF: 'WEREWOLF',
   WITCH: 'VILLAGE',
@@ -141,6 +142,7 @@ describe('MVP role catalog', () => {
     expect(queue).toEqual([
       { mode: 'ACTIVE', order: 10, roleId: 'SEER' },
       { mode: 'ACTIVE', order: 20, roleId: 'GUARD' },
+      { mode: 'ACTIVE', order: 25, roleId: 'SILENCER' },
       { mode: 'ACTIVE', order: 30, roleId: 'WEREWOLF' },
       { mode: 'ACTIVE', order: 40, roleId: 'DEMON_WOLF' },
       { mode: 'DECOY', order: 45, roleId: 'HYBRID_WOLF' },
@@ -148,7 +150,7 @@ describe('MVP role catalog', () => {
     ]);
   });
 
-  it.each(['SEER', 'GUARD'] as const)(
+  it.each(['SEER', 'GUARD', 'SILENCER'] as const)(
     'keeps a dead %s narrated as DECOY',
     (roleId) => {
       const state = markDead(makeMatch(), roleId);
@@ -213,7 +215,7 @@ describe('MVP role catalog', () => {
     expect(modeFor(exhausted, 'WITCH')).toBe('DECOY');
   });
 
-  it.each(['SEER', 'GUARD', 'WITCH'] as const)(
+  it.each(['SEER', 'GUARD', 'SILENCER', 'WITCH'] as const)(
     'keeps a cursed %s turn narrated but disables its ability',
     (roleId) => {
       const state = makeMatch();

@@ -710,6 +710,21 @@ The strict-majority gate runs before tie or execution handling. If it is not
 met, the vote resolves with no elimination and the voting context is cleared.
 Mayor elections continue to use their existing plurality and tie behavior.
 
+A player with the public `SILENCED` flag is excluded from
+`eligibleVoterIds` in both Mayor and execution votes, but remains in
+`eligibleTargetIds`. The flag lasts for exactly one Day Phase and is removed
+when the next night starts.
+
+## 23.1 Deferred silence effect
+
+The Silencer's night action records an internal `SILENCE` effect and stores the
+selected player and night number in role runtime state. Night resolution
+applies the public flag only after deaths are resolved. Consequently, source
+death does not cancel a submitted action, while a target who dies that night
+never receives the flag. The night number makes the consecutive-target check
+distinguish an immediately repeated selection from a selection after a passed
+night.
+
 ---
 
 # 24. Fool / Kẻ ngốc

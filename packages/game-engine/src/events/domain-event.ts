@@ -34,6 +34,7 @@ export type DomainEvent =
   | { type: 'PLAYER_CURSED'; playerId: PlayerId }
   | { type: 'HYBRID_WOLF_CONVERTED'; playerId: PlayerId }
   | { type: 'DEMON_WOLF_CURSE_CONSUMED'; playerId: PlayerId }
+  | { type: 'SILENCE_APPLIED'; playerId: PlayerId }
   | {
       type: 'HUNTER_SHOT_RESOLVED';
       playerId: PlayerId;

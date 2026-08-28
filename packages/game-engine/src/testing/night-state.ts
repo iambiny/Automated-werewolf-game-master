@@ -33,6 +33,12 @@ const PLAYERS = [
     roleId: 'HYBRID_WOLF',
     teamId: 'VILLAGE',
   },
+  {
+    displayName: 'Silencer',
+    id: 'silencer',
+    roleId: 'SILENCER',
+    teamId: 'VILLAGE',
+  },
 ] as const;
 
 export function createNightTestState(
