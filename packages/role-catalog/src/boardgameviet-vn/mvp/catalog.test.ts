@@ -14,6 +14,7 @@ const ROLE_TEAMS: Record<MvpRoleId, RoleAssignment['teamId']> = {
   DEMON_WOLF: 'WEREWOLF',
   FOOL: 'FOOL',
   GUARD: 'VILLAGE',
+  HYBRID_WOLF: 'VILLAGE',
   HUNTER: 'VILLAGE',
   SEER: 'VILLAGE',
   VILLAGER: 'VILLAGE',
@@ -122,6 +123,11 @@ describe('MVP role catalog', () => {
       playerId: 'demon',
       roleId: 'DEMON_WOLF',
     });
+    expect(createMvpRoleRuntimeState('hybrid', 'HYBRID_WOLF', rules)).toEqual({
+      data: { converted: false },
+      playerId: 'hybrid',
+      roleId: 'HYBRID_WOLF',
+    });
     expect(createMvpRoleRuntimeState('witch', 'WITCH', rules)).toEqual({
       data: { healPotionRemaining: 2, poisonPotionRemaining: 3 },
       playerId: 'witch',
@@ -137,6 +143,7 @@ describe('MVP role catalog', () => {
       { mode: 'ACTIVE', order: 20, roleId: 'GUARD' },
       { mode: 'ACTIVE', order: 30, roleId: 'WEREWOLF' },
       { mode: 'ACTIVE', order: 40, roleId: 'DEMON_WOLF' },
+      { mode: 'DECOY', order: 45, roleId: 'HYBRID_WOLF' },
       { mode: 'ACTIVE', order: 50, roleId: 'WITCH' },
     ]);
   });
@@ -166,6 +173,26 @@ describe('MVP role catalog', () => {
     };
 
     expect(modeFor(consumed, 'DEMON_WOLF')).toBe('DECOY');
+  });
+
+  it('keeps the Hybrid Wolf private turn after conversion', () => {
+    const state = makeMatch();
+    const id = playerId('HYBRID_WOLF');
+    const converted: MatchState = {
+      ...state,
+      roleAssignments: {
+        ...state.roleAssignments,
+        [id]: {
+          converted: true,
+          currentRoleId: 'WEREWOLF',
+          originalRoleId: 'HYBRID_WOLF',
+          teamId: 'WEREWOLF',
+        },
+      },
+    };
+
+    expect(modeFor(converted, 'HYBRID_WOLF')).toBe('DECOY');
+    expect(modeFor(converted, 'WEREWOLF')).toBe('ACTIVE');
   });
 
   it('keeps an exhausted Witch turn narrated as DECOY', () => {

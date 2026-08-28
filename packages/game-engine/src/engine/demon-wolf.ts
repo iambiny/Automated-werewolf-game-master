@@ -1,9 +1,10 @@
-import type { ActionId } from '@werewolf/shared';
+import type { ActionId, PlayerId } from '@werewolf/shared';
 
 import type { GameAction, GameEffect } from '../domain/action';
 import type { DemonWolfCurseDecision } from '../domain/core-role-rules';
 import type { MatchState } from '../domain/match-state';
 import type { EngineResult } from './result';
+import { getPendingHybridWolfConversionId } from './hybrid-wolf';
 import { domainError } from './result';
 import {
   getLivingRoleHolderIds,
@@ -15,6 +16,45 @@ import {
 export interface SubmitDemonWolfCurseInput {
   actionId: ActionId;
   decision: DemonWolfCurseDecision;
+}
+
+export interface DemonWolfCurseEvaluation {
+  outcome: 'FAILED' | 'SUCCEEDED' | 'CONSUMED';
+  targetPlayerId: PlayerId;
+}
+
+/**
+ * Evaluates the curse from information already known during the Demon Wolf
+ * turn. Witch actions deliberately do not participate because their turn is
+ * later in the queue and cannot change the private handoff result.
+ */
+export function evaluateDemonWolfCurse(
+  state: MatchState,
+): DemonWolfCurseEvaluation | null {
+  const context = state.nightContext;
+  const curse = context?.effects.find(
+    (effect) => effect.type === 'DEMON_WOLF_CURSE_INTENT',
+  );
+  const targetPlayerId = curse?.targetPlayerIds[0];
+  if (!context || !curse || !targetPlayerId) return null;
+
+  const matchesAttack = context.werewolfAttackTargetId === targetPlayerId;
+  const protectedByGuard = context.effects.some(
+    (effect) =>
+      effect.type === 'PROTECT' &&
+      effect.targetPlayerIds.includes(targetPlayerId),
+  );
+  if (!matchesAttack || protectedByGuard) {
+    return { outcome: 'FAILED', targetPlayerId };
+  }
+
+  const isUnconvertedHybridWolf =
+    getPendingHybridWolfConversionId(state) === targetPlayerId;
+
+  return {
+    outcome: isUnconvertedHybridWolf ? 'CONSUMED' : 'SUCCEEDED',
+    targetPlayerId,
+  };
 }
 
 export function submitDemonWolfCurseDecision(

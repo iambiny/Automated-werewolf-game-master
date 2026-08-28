@@ -9,6 +9,8 @@ import type { DomainEvent } from '../events/domain-event';
 import { applyDeaths, type PendingDeath } from './death';
 import { domainError, type EngineResult } from './result';
 import { CURSED_ROLE_STATE_KEY } from './curse';
+import { evaluateDemonWolfCurse } from './demon-wolf';
+import { getPendingHybridWolfConversionId } from './hybrid-wolf';
 
 export function resolveNight(
   state: MatchState,
@@ -43,23 +45,39 @@ export function resolveNight(
   const protectedIds = targetSet(context.effects, 'PROTECT');
   const healedIds = targetSet(context.effects, 'HEAL');
   const poisonIds = targetSet(context.effects, 'POISON');
+  const curseEvaluation = evaluateDemonWolfCurse(state);
   const curseMatchesAttack =
     Boolean(attackTargetId) && curse?.targetPlayerIds[0] === attackTargetId;
   const protectedFromAttack =
     Boolean(attackTargetId) && protectedIds.has(attackTargetId as PlayerId);
   const healedFromAttack =
     Boolean(attackTargetId) && healedIds.has(attackTargetId as PlayerId);
-  const curseSucceeded =
-    curseMatchesAttack &&
-    !protectedFromAttack &&
-    (!healedFromAttack || !rules.healPreventsCurse);
+  const hybridWolfConversion =
+    getPendingHybridWolfConversionId(state) !== undefined;
+  const curseSucceeded = curseEvaluation?.outcome === 'SUCCEEDED';
   const attackPrevented =
-    protectedFromAttack ||
-    (healedFromAttack && (!curseMatchesAttack || rules.healPreventsCurse));
+    !hybridWolfConversion &&
+    (protectedFromAttack || (healedFromAttack && !curseSucceeded));
 
   let nextState = state;
   const events: DomainEvent[] = [];
   let transformedPlayerId: PlayerId | undefined;
+
+  if (hybridWolfConversion && attackTargetId) {
+    transformedPlayerId = attackTargetId;
+    nextState = applyHybridWolfConversion(nextState, attackTargetId);
+    events.push({ playerId: attackTargetId, type: 'HYBRID_WOLF_CONVERTED' });
+
+    if (curseMatchesAttack && curse) {
+      nextState = consumeDemonWolfCurse(nextState, curse.sourcePlayerIds);
+      events.push(
+        ...curse.sourcePlayerIds.map((playerId): DomainEvent => ({
+          playerId,
+          type: 'DEMON_WOLF_CURSE_CONSUMED',
+        })),
+      );
+    }
+  }
 
   if (curseSucceeded && attackTargetId && curse) {
     transformedPlayerId = attackTargetId;
@@ -78,7 +96,12 @@ export function resolveNight(
   }
 
   const pendingDeaths: PendingDeath[] = [];
-  if (attackTargetId && !attackPrevented && !curseSucceeded) {
+  if (
+    attackTargetId &&
+    !attackPrevented &&
+    !curseSucceeded &&
+    !hybridWolfConversion
+  ) {
     pendingDeaths.push({
       causes: ['WEREWOLF_ATTACK'],
       playerId: attackTargetId,
@@ -100,7 +123,7 @@ export function resolveNight(
 
   const result: NightResolutionResult = {
     attackPrevented,
-    curseOutcome: curse ? (curseSucceeded ? 'SUCCEEDED' : 'FAILED') : 'NONE',
+    curseOutcome: curse ? (curseEvaluation?.outcome ?? 'FAILED') : 'NONE',
     deaths: deathResolution.deaths,
     nightNumber: context.nightNumber,
     ...(transformedPlayerId ? { transformedPlayerId } : {}),
@@ -119,14 +142,39 @@ export function resolveNight(
   return { events, ok: true, state: nextState };
 }
 
-function applyCurseConversion(
+function applyHybridWolfConversion(
   state: MatchState,
   targetPlayerId: PlayerId,
-  demonWolfPlayerIds: PlayerId[],
 ): MatchState {
   const assignment = state.roleAssignments[targetPlayerId];
   if (!assignment) return state;
 
+  return {
+    ...state,
+    roleAssignments: {
+      ...state.roleAssignments,
+      [targetPlayerId]: {
+        ...assignment,
+        converted: true,
+        currentRoleId: 'WEREWOLF',
+        teamId: 'WEREWOLF',
+      },
+    },
+    roleState: {
+      ...state.roleState,
+      [targetPlayerId]: {
+        data: { ...state.roleState[targetPlayerId]?.data, converted: true },
+        playerId: targetPlayerId,
+        roleId: 'WEREWOLF',
+      },
+    },
+  };
+}
+
+function consumeDemonWolfCurse(
+  state: MatchState,
+  demonWolfPlayerIds: PlayerId[],
+): MatchState {
   const roleState = { ...state.roleState };
   for (const playerId of demonWolfPlayerIds) {
     const existing = state.roleState[playerId];
@@ -136,6 +184,20 @@ function applyCurseConversion(
       roleId: 'DEMON_WOLF',
     } satisfies RoleRuntimeState;
   }
+  return { ...state, roleState };
+}
+
+function applyCurseConversion(
+  state: MatchState,
+  targetPlayerId: PlayerId,
+  demonWolfPlayerIds: PlayerId[],
+): MatchState {
+  const assignment = state.roleAssignments[targetPlayerId];
+  if (!assignment) return state;
+
+  const roleState = { ...state.roleState };
+  const consumedState = consumeDemonWolfCurse(state, demonWolfPlayerIds);
+  Object.assign(roleState, consumedState.roleState);
 
   const targetRoleState = state.roleState[targetPlayerId];
   roleState[targetPlayerId] = {

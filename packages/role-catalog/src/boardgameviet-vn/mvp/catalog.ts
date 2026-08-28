@@ -51,6 +51,21 @@ export const mvpRoleCatalog = {
     shouldNarrateTurn: narrateWhenConfigured('GUARD'),
     teamId: 'VILLAGE',
   },
+  HYBRID_WOLF: {
+    ...passiveRoleBehavior,
+    description:
+      'Starts with the Village and becomes a normal Werewolf after an unprotected Werewolf attack.',
+    hasPhysicalCard: true,
+    id: 'HYBRID_WOLF',
+    name: 'Hybrid Wolf / Sói Lai',
+    night: {
+      activation: 'EVERY_NIGHT',
+      narratorAlwaysCallsIfInComposition: true,
+      order: 45,
+    },
+    shouldNarrateTurn: narrateWhenConfigured('HYBRID_WOLF'),
+    teamId: 'VILLAGE',
+  },
   WEREWOLF: {
     canPerformAction: hasLivingWerewolfAlignedPlayer,
     description: 'Participates in the shared Werewolf attack selection.',

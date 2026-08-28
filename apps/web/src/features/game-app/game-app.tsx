@@ -637,7 +637,10 @@ export function GameApp() {
 
     const nextPrivate = controller.getPrivateTurnView();
     setPrivateTurn(nextPrivate);
-    if (privateTurn.roleId === 'SEER' && action !== 'PASS') {
+    if (
+      (privateTurn.roleId === 'SEER' && action !== 'PASS') ||
+      (privateTurn.roleId === 'DEMON_WOLF' && action === 'CURSE')
+    ) {
       setScreen('NIGHT_RESULT');
     } else if (
       privateTurn.roleId === 'WITCH' &&
@@ -661,6 +664,15 @@ export function GameApp() {
   async function advanceNight() {
     const controller = controllerRef.current;
     if (!controller) return;
+    const currentView = controller.getPublicView();
+    if (
+      currentView?.phase.type === 'NIGHT' &&
+      currentView.phase.subphase === 'RESOLUTION' &&
+      currentView.nightResolved
+    ) {
+      await finishNight();
+      return;
+    }
     setBusy(true);
     setNightError(null);
     const result = await controller.dispatch({
@@ -1255,12 +1267,20 @@ export function GameApp() {
         )}
         {screen === 'NIGHT_RESULT' && privateTurn && (
           <NightResultScreen
+            locale={locale}
             onAcknowledge={() => {
               setPrivateTurn((turn) =>
-                turn ? { ...turn, privateResult: undefined } : null,
+                turn
+                  ? {
+                      ...turn,
+                      curseResult: undefined,
+                      privateResult: undefined,
+                    }
+                  : null,
               );
               setScreen('NIGHT_SLEEP');
             }}
+            timeoutSeconds={rules.roleTimerSeconds}
             turn={privateTurn}
           />
         )}
@@ -2175,8 +2195,13 @@ function NightTurnScreen({
           {nightGlyph(turn.roleId)}
         </div>
         <CursedRoleNotice locale={locale} turn={turn} />
-        <h2>Hold the night still.</h2>
-        <p>Complete this private pause, then close your eyes when prompted.</p>
+        <HybridWolfNotice locale={locale} turn={turn} />
+        {!turn.privateContext?.hybridWolf && <h2>Hold the night still.</h2>}
+        {!turn.privateContext?.hybridWolf && (
+          <p>
+            Complete this private pause, then close your eyes when prompted.
+          </p>
+        )}
         <button
           className="button button-primary night-action"
           disabled={busy}
@@ -2325,6 +2350,32 @@ function CursedRoleNotice({
   );
 }
 
+function HybridWolfNotice({
+  locale,
+  turn,
+}: {
+  locale: SupportedLocale;
+  turn: PrivateTurnView;
+}) {
+  const hybridWolf = turn.privateContext?.hybridWolf;
+  if (!hybridWolf) return null;
+
+  const message = hybridWolf.converted
+    ? 'You were attacked by the Werewolves and have been converted into a Werewolf. From now on, you win with the Werewolf team.'
+    : 'You are still a member of the Village.';
+  return (
+    <div
+      className={`curse-notice hybrid-wolf-notice ${
+        hybridWolf.converted ? 'is-converted' : 'is-village'
+      }`}
+      role="status"
+    >
+      <strong>{hybridWolf.player.displayName}</strong>
+      <p>{translateInterfaceText(locale, message)}</p>
+    </div>
+  );
+}
+
 function WitchControls({
   busy,
   onSelect,
@@ -2445,12 +2496,28 @@ function NightTurnHeader({
 }
 
 function NightResultScreen({
+  locale,
   onAcknowledge,
+  timeoutSeconds,
   turn,
 }: {
+  locale: SupportedLocale;
   onAcknowledge: () => void;
+  timeoutSeconds: number;
   turn: PrivateTurnView;
 }) {
+  if (turn.curseResult) {
+    return (
+      <DemonWolfCurseResultScreen
+        curseResult={turn.curseResult}
+        locale={locale}
+        onAcknowledge={onAcknowledge}
+        roleId={turn.roleId}
+        timeoutSeconds={timeoutSeconds}
+      />
+    );
+  }
+
   const result = turn.privateResult;
   const target = turn.validTargets?.find(
     (player) => player.playerId === result?.targetPlayerId,
@@ -2478,6 +2545,61 @@ function NightResultScreen({
         onClick={onAcknowledge}
       >
         Hide result and sleep
+      </button>
+    </section>
+  );
+}
+
+function DemonWolfCurseResultScreen({
+  curseResult,
+  locale,
+  onAcknowledge,
+  roleId,
+  timeoutSeconds,
+}: {
+  curseResult: NonNullable<PrivateTurnView['curseResult']>;
+  locale: SupportedLocale;
+  onAcknowledge: () => void;
+  roleId: string;
+  timeoutSeconds: number;
+}) {
+  const remaining = useDeadlineCountdown(timeoutSeconds, onAcknowledge);
+  const succeeded = curseResult.outcome !== 'FAILED';
+  return (
+    <section className="night-result panel-enter">
+      <NightTurnHeader remaining={remaining} roleId={roleId} />
+      <div className="result-eye" aria-hidden="true">
+        {succeeded ? '✓' : '×'}
+      </div>
+      <p className="eyebrow">For the Demon Wolf only</p>
+      <h2>
+        {translateInterfaceText(
+          locale,
+          succeeded ? 'Curse successful' : 'Curse failed',
+        )}
+      </h2>
+      {succeeded ? (
+        <div className="result-value">
+          {translateInterfaceText(locale, 'Touch ')}
+          {curseResult.target.displayName}
+          {translateInterfaceText(locale, "'s head now")}
+        </div>
+      ) : (
+        <p>
+          {translateInterfaceText(locale, 'The curse did not take effect.')}
+        </p>
+      )}
+      <p>
+        {translateInterfaceText(
+          locale,
+          'Complete the private handoff before the timer ends.',
+        )}
+      </p>
+      <button
+        className="button button-primary night-action"
+        onClick={onAcknowledge}
+      >
+        {translateInterfaceText(locale, 'End role and sleep')}
       </button>
     </section>
   );
@@ -3241,6 +3363,7 @@ function roleGlyph(roleId: MvpRoleId): string {
     DEMON_WOLF: '◆',
     FOOL: '◇',
     GUARD: '⬟',
+    HYBRID_WOLF: '◐',
     HUNTER: '⌖',
     SEER: '◉',
     VILLAGER: '●',
@@ -3405,6 +3528,7 @@ function discussionTimerKey(view: PublicGameView): string {
 const NIGHT_AUDIO_ROLES: readonly NightRoleId[] = [
   'SEER',
   'GUARD',
+  'HYBRID_WOLF',
   'WEREWOLF',
   'DEMON_WOLF',
   'WITCH',
@@ -3439,6 +3563,7 @@ function audioCueForScreen(
   locale: SupportedLocale,
   roleId?: string,
 ): AudioCue | null {
+  if (roleId === 'HYBRID_WOLF' && screen === 'NIGHT_TURN') return null;
   if (
     (screen === 'NIGHT_WAKE' ||
       screen === 'NIGHT_TURN' ||

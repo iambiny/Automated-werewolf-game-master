@@ -2329,6 +2329,10 @@ If the Werewolves select no attack target, Demon Wolf cannot successfully curse 
 
 The curse is conditional on the Werewolf attack being effective after defensive resolution.
 
+For the current MVP flow, "defensive resolution" here means Guard protection,
+which is already known when the Demon Wolf acts. Witch healing occurs later
+and does not block or reverse a successful curse.
+
 ```text
 Werewolves attack Player A
   -> Demon Wolf chooses CURSE on Player A
@@ -2352,6 +2356,12 @@ Werewolves attack Player A
 ```
 
 The cursed victim must not also be resolved as an ordinary Werewolf death when curse success replaces the attack outcome.
+
+Immediately after choosing `CURSE`, the system MUST show the Demon Wolf a
+timed private result. `CURSE_SUCCESS` and Hybrid Wolf curse consumption MUST
+show `Touch [target]'s head now`; a failed curse MUST NOT show a physical
+handoff. The role remains awake until the user ends the result step (or its
+role-action timer expires), after which the normal sleep transition begins.
 
 ## 42.6 Ability consumption semantics
 
@@ -2526,3 +2536,24 @@ This policy applies at minimum to:
 - Witch.
 
 This privacy policy is independent from public death announcements: the table may know that a specific player died, but narrator cadence must not reveal whether a hidden functional role was removed or a one-time secret ability was consumed.
+
+---
+
+# 44. Hybrid Wolf Single-Call Conversion Handoff
+
+The Hybrid Wolf MUST have exactly one narrator call per configured night. In
+the MVP queue that call occurs after Demon Wolf and before Witch:
+
+```text
+Werewolf -> Demon Wolf -> Hybrid Wolf -> Witch
+```
+
+If the Werewolves selected the living, unconverted Hybrid Wolf and Guard did
+not protect them, the system MUST disclose conversion during that normal
+Hybrid Wolf status turn. The player then begins waking with the Werewolves on
+the following night. If Guard protected them, the normal Village status is
+shown instead.
+
+Night resolution MUST NOT synthesize an additional Hybrid Wolf wake-up or
+private pre-dawn notification. The same narrator cadence is preserved whether
+or not the Hybrid Wolf converted.

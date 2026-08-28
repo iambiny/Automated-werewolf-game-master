@@ -12,6 +12,7 @@ import {
   setNightResolutionPhase,
 } from '../testing/night-state';
 import { submitDemonWolfCurseDecision } from './demon-wolf';
+import { submitGuardProtection } from './guard';
 import { resolveNight } from './night-resolution';
 import { submitWerewolfAttack } from './werewolf';
 import { submitWitchHeal, submitWitchPoison } from './witch';
@@ -82,6 +83,34 @@ describe('Witch mechanics', () => {
     );
   });
 
+  it('rejects healing when Guard already prevented the Werewolf attack', () => {
+    let state = createNightTestState('GUARD');
+    state = success(
+      submitGuardProtection(
+        state,
+        { actionId: 'guard-protect-villager', targetPlayerId: 'villager' },
+        {
+          allowSameTargetConsecutiveNights: false,
+          allowSelfProtect: false,
+        },
+      ),
+    );
+    state = attack(state, 'villager');
+    state = setActiveNightTurn(state, 'WITCH');
+
+    const result = submitWitchHeal(
+      state,
+      { actionId: 'heal-protected-target', targetPlayerId: 'villager' },
+      witchRules,
+    );
+
+    expect(result).toMatchObject({
+      error: { code: 'INVALID_TARGET' },
+      ok: false,
+    });
+    expect(result.state.roleState.witch?.data.healPotionRemaining).toBe(1);
+  });
+
   it('uses poison to kill a living target with the correct cause', () => {
     let state = createNightTestState('WITCH');
     state = success(
@@ -145,7 +174,7 @@ describe('Witch mechanics', () => {
     });
   });
 
-  it('can explicitly make healing prevent a pending curse', () => {
+  it('does not offer healing after a successful curse replaces the attack', () => {
     let state = attack(createNightTestState('WEREWOLF'), 'villager');
     state = success(
       submitDemonWolfCurseDecision(setActiveNightTurn(state, 'DEMON_WOLF'), {
@@ -153,13 +182,18 @@ describe('Witch mechanics', () => {
         decision: 'CURSE',
       }),
     );
-    state = success(
-      submitWitchHeal(
-        setActiveNightTurn(state, 'WITCH'),
-        { actionId: 'heal-cursed-target', targetPlayerId: 'villager' },
-        witchRules,
-      ),
+    state = setActiveNightTurn(state, 'WITCH');
+    const heal = submitWitchHeal(
+      state,
+      { actionId: 'heal-cursed-target', targetPlayerId: 'villager' },
+      witchRules,
     );
+
+    expect(heal).toMatchObject({
+      error: { code: 'INVALID_TARGET' },
+      ok: false,
+    });
+    expect(heal.state.roleState.witch?.data.healPotionRemaining).toBe(1);
 
     const resolution = resolveNight(setNightResolutionPhase(state), {
       ...resolutionRules,
@@ -169,12 +203,12 @@ describe('Witch mechanics', () => {
     expect(resolution.ok).toBe(true);
     if (!resolution.ok) throw new Error(resolution.error.message);
     expect(resolution.state.players.villager?.lifeState).toBe('ALIVE');
-    expect(resolution.state.roleAssignments.villager?.teamId).toBe('VILLAGE');
+    expect(resolution.state.roleAssignments.villager?.teamId).toBe('WEREWOLF');
     expect(resolution.state.nightContext?.resolution?.curseOutcome).toBe(
-      'FAILED',
+      'SUCCEEDED',
     );
     expect(resolution.state.roleState['demon-wolf']?.data.curseAvailable).toBe(
-      true,
+      false,
     );
   });
 });

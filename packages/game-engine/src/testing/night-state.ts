@@ -27,6 +27,12 @@ const PLAYERS = [
     teamId: 'VILLAGE',
   },
   { displayName: 'Fool', id: 'fool', roleId: 'FOOL', teamId: 'FOOL' },
+  {
+    displayName: 'Hybrid Wolf',
+    id: 'hybrid-wolf',
+    roleId: 'HYBRID_WOLF',
+    teamId: 'VILLAGE',
+  },
 ] as const;
 
 export function createNightTestState(
@@ -72,6 +78,11 @@ export function createNightTestState(
       ]),
     ),
     roleState: {
+      'hybrid-wolf': {
+        data: { converted: false },
+        playerId: 'hybrid-wolf',
+        roleId: 'HYBRID_WOLF',
+      },
       'demon-wolf': {
         data: { curseAvailable: true },
         playerId: 'demon-wolf',

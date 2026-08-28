@@ -43,7 +43,7 @@ describe('MVP public daytime projection', () => {
     state.status = 'COMPLETED';
     const view = toMvpPublicGameView(state, DEFAULT_SETUP_RULES);
 
-    expect(view.revealedRoles).toHaveLength(8);
+    expect(view.revealedRoles).toHaveLength(9);
     expect(
       view.revealedRoles?.find((player) => player.playerId === 'wolf'),
     ).toMatchObject({

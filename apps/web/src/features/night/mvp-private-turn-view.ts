@@ -1,4 +1,7 @@
 import {
+  evaluateDemonWolfCurse,
+  getPendingHybridWolfConversionId,
+  getWitchHealTargetId,
   isPlayerCursed,
   type MatchState,
   type PlayerId,
@@ -28,10 +31,19 @@ export function toMvpPrivateTurnView(
     cursedPlayers.length > 0
       ? { cursedPlayers: summarize(cursedPlayers) }
       : undefined;
+  const hybridWolfContext =
+    base.roleId === 'HYBRID_WOLF' ? getHybridWolfContext(state) : undefined;
+  const passiveContext =
+    cursedContext || hybridWolfContext
+      ? {
+          ...cursedContext,
+          ...(hybridWolfContext ? { hybridWolf: hybridWolfContext } : {}),
+        }
+      : undefined;
   if (base.mode === 'DECOY') {
     return {
       ...base,
-      ...(cursedContext ? { privateContext: cursedContext } : {}),
+      ...(passiveContext ? { privateContext: passiveContext } : {}),
     };
   }
 
@@ -98,8 +110,20 @@ export function toMvpPrivateTurnView(
     case 'DEMON_WOLF': {
       const victimId = state.nightContext?.werewolfAttackTargetId;
       const victim = victimId ? state.players[victimId] : undefined;
+      const curse = evaluateDemonWolfCurse(state);
+      const curseTarget = curse
+        ? state.players[curse.targetPlayerId]
+        : undefined;
       return {
         ...withCurseNotice,
+        ...(curse && curseTarget
+          ? {
+              curseResult: {
+                outcome: curse.outcome,
+                target: summarizeOne(curseTarget),
+              },
+            }
+          : {}),
         privateContext: {
           ...cursedContext,
           ...(victim ? { werewolfVictim: summarizeOne(victim) } : {}),
@@ -107,7 +131,7 @@ export function toMvpPrivateTurnView(
       };
     }
     case 'WITCH': {
-      const victimId = state.nightContext?.werewolfAttackTargetId;
+      const victimId = getWitchHealTargetId(state);
       const victim = victimId ? state.players[victimId] : undefined;
       return {
         ...withCurseNotice,
@@ -140,6 +164,27 @@ export function toMvpPrivateTurnView(
     default:
       return withCurseNotice;
   }
+}
+
+function getHybridWolfContext(
+  state: MatchState,
+): { converted: boolean; player: PlayerSummary } | undefined {
+  const entry = Object.entries(state.roleAssignments).find(
+    ([playerId, assignment]) =>
+      assignment.originalRoleId === 'HYBRID_WOLF' &&
+      state.players[playerId]?.lifeState === 'ALIVE',
+  );
+  if (!entry) return undefined;
+
+  const [playerId, assignment] = entry;
+  const player = state.players[playerId];
+  if (!player) return undefined;
+  return {
+    converted:
+      assignment.converted === true ||
+      getPendingHybridWolfConversionId(state) === playerId,
+    player: summarizeOne(player),
+  };
 }
 
 function currentRoleHolderIds(state: MatchState, roleId: string): PlayerId[] {

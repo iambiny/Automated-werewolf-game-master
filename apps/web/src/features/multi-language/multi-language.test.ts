@@ -11,6 +11,7 @@ import {
 describe('multi-language', () => {
   it('provides Vietnamese labels for every MVP role', () => {
     expect(getRoleLabels('vi')).toMatchObject({
+      HYBRID_WOLF: 'Sói Lai',
       SEER: 'Tiên Tri',
       WEREWOLF: 'Ma Sói',
       WITCH: 'Phù Thủy',
@@ -37,6 +38,12 @@ describe('multi-language', () => {
     expect(translateInterfaceText('vi', 'No attack')).toBe('Không tấn công');
     expect(translateInterfaceText('vi', 'Save the curse')).toBe(
       'Giữ lại lời nguyền',
+    );
+    expect(translateInterfaceText('vi', 'Curse successful')).toBe(
+      'Lời nguyền thành công',
+    );
+    expect(translateInterfaceText('vi', 'End role and sleep')).toBe(
+      'Kết thúc vai trò và đi ngủ',
     );
     expect(translateInterfaceText('vi', 'Use healing potion')).toBe(
       'Dùng bình thuốc cứu',

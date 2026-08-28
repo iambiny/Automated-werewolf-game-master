@@ -578,6 +578,7 @@ SEER
 → GUARD
 → WEREWOLF
 → DEMON_WOLF
+→ HYBRID_WOLF (private status)
 → WITCH
 → NIGHT_RESOLUTION
 ```
@@ -639,6 +640,12 @@ exact same target selected by Werewolf attack
 
 Curse is an intent, not immediate mutation.
 
+Immediately after intent submission, the private projection evaluates the
+curse against the already-recorded Guard protection. Success and Hybrid Wolf
+consumption produce a timed `Touch [target]'s head now` handoff; failure
+produces no handoff. The Demon Wolf explicitly ends this result step before
+the sleep transition. A later Witch heal cannot revise the result.
+
 Resolution:
 
 ```text
@@ -675,6 +682,17 @@ Role command validation and queue eligibility must reject cursed Seer,
 Guard, Witch, and Fool actions. A cursed Witch's private turn must not expose
 the Werewolf victim or potion counts, and a cursed Hunter must not create a
 revenge-shot trigger when killed.
+
+Hybrid Wolf conversion is a distinct, higher-priority transition. An
+unprotected pack attack changes `VILLAGE/HYBRID_WOLF` to
+`WEREWOLF/WEREWOLF`, records `converted: true`, and preserves
+`originalRoleId: HYBRID_WOLF`. Guard protection blocks it. A same-target Demon
+Wolf curse is consumed without applying the generic cursed-role state; when
+Guard blocks the attack, the curse remains available. The configured Hybrid
+Wolf private status turn is always queued as DECOY, including after conversion,
+and is ordered between Demon Wolf and Witch. A pending conversion is disclosed
+during that one normal status turn; no additional pre-dawn notification or
+second narrator call is created.
 
 The Fool is a neutral third alignment (`teamId: 'FOOL'`). Team-only Seer
 investigation returns `Unclear role` for the Fool. Neutral Fool players are

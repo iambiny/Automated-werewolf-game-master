@@ -3,7 +3,7 @@
 **Document version:** 1.0  
 **Status:** MVP role rules source  
 **Ruleset:** BoardGameViet-compatible basic MVP preset with project-specific overrides  
-**MVP roles:** Villager, Guard, Seer, Witch, Werewolf, Hunter, Fool, Demon Wolf  
+**MVP roles:** Villager, Guard, Seer, Witch, Werewolf, Hybrid Wolf, Hunter, Fool, Demon Wolf
 **Public office:** Mayor / Trưởng làng  
 
 ---
@@ -37,8 +37,9 @@ Default MVP order:
 2. Guard
 3. Werewolf
 4. Demon Wolf
-5. Witch
-6. Night Resolution
+5. Hybrid Wolf (private status turn)
+6. Witch
+7. Night Resolution
 ```
 
 Functional roles continue to be narrated after death or ability exhaustion using DECOY turns when required by privacy rules.
@@ -242,6 +243,62 @@ Werewolf group narration should continue according to ruleset privacy behavior w
 
 ---
 
+# 8.1 Hybrid Wolf / Cursed (Sói Lai / Kẻ Bán Sói)
+
+```ts
+id: 'HYBRID_WOLF'
+initial teamId: 'VILLAGE'
+night.order: 45
+```
+
+The Hybrid Wolf begins on the Village team. Neither the Hybrid Wolf nor the
+Werewolves know one another at setup. Its original role is retained for match
+history and replay.
+
+Every configured night includes a private Hybrid Wolf status turn, even after
+conversion. Before conversion it displays: “You are still a member of the
+Village.” This single turn occurs after Demon Wolf and before Witch. If the
+Hybrid Wolf was selected by the Werewolves and Guard did not protect them, the
+same normal status turn immediately discloses the conversion. No additional
+pre-dawn wake-up is added, so the observable narration sequence never reveals
+whether conversion occurred.
+
+The status turn has localized Hybrid Wolf wake and sleep narration. The
+unconverted Village message uses a green-and-yellow visual treatment; the
+converted warning retains the red danger treatment.
+
+An unprotected Werewolf pack attack converts the living Hybrid Wolf instead of
+killing it:
+
+```ts
+originalRoleId = 'HYBRID_WOLF'
+currentRoleId = 'WEREWOLF'
+teamId = 'WEREWOLF'
+converted = true
+```
+
+The transition is permanent. From the following Werewolf turn, the converted
+player wakes with all living Werewolf-aligned players, participates in their
+shared target selection, and uses the Werewolf win condition.
+
+Guard protection prevents both the attack and conversion. Village execution,
+Witch poison, Hunter shot, and all other non-Werewolf death sources kill the
+unconverted Hybrid Wolf normally. They never cause conversion.
+
+If Demon Wolf curses the same pack target, intrinsic Hybrid Wolf conversion
+takes priority. The target becomes a normal Werewolf (not a cursed functional
+role), while Demon Wolf's curse is consumed. If Guard blocks that attack,
+neither conversion occurs and Demon Wolf retains the curse.
+
+Seer results are state-dependent:
+
+| State | TEAM scan | ROLE scan |
+|---|---|---|
+| Before conversion | `VILLAGE` | `HYBRID_WOLF` |
+| After conversion | `WEREWOLF` | `WEREWOLF` |
+
+---
+
 # 9. Demon Wolf / Sói quỷ
 
 ```ts
@@ -287,6 +344,21 @@ decision: 'CURSE' | 'SKIP'
 ```
 
 If no Werewolf target exists, curse cannot succeed.
+
+After `CURSE` is submitted, the Demon Wolf turn remains open on a timed
+private result step. The result is computed immediately from the Werewolf
+target and the Guard protection already recorded earlier in the night:
+
+- success (including consumption by an unconverted Hybrid Wolf) displays
+  `Touch [target]'s head now` so that player knows to wake with the Werewolves
+  on the following night;
+- failure displays no physical handoff instruction;
+- the Demon Wolf ends the result step with `End role and sleep`, or the normal
+  role-action timer closes it automatically.
+
+The later Witch turn does not revise this private curse result. A healing
+potion can prevent an ordinary Werewolf death, but cannot undo a curse that
+was already reported as successful.
 
 ## Curse blocked
 
@@ -388,6 +460,12 @@ Produces:
 ```ts
 HEAL(target)
 ```
+
+The Witch sees and may heal only an effective pending Werewolf-attack death.
+If Guard already protected the selected target, the Witch is not shown that
+player as a victim and cannot spend the healing potion on them. The same rule
+applies when the attack has already been replaced by a successful curse or an
+intrinsic Hybrid Wolf conversion.
 
 Basic rules should define:
 
@@ -635,6 +713,7 @@ WEREWOLF
 |---|---|---|---|
 | Seer | ACTIVE | DECOY | N/A |
 | Guard | ACTIVE | DECOY | N/A |
+| Hybrid Wolf | DECOY status | DECOY | DECOY status after conversion |
 | Werewolf group | ACTIVE if eligible wolves exist | narrator behavior follows faction privacy | N/A |
 | Demon Wolf | ACTIVE if curse available | DECOY | DECOY |
 | Witch | ACTIVE if valid action exists | DECOY | DECOY |
@@ -651,6 +730,7 @@ export const MVP_ROLE_IDS = [
   'VILLAGER',
   'SEER',
   'GUARD',
+  'HYBRID_WOLF',
   'WEREWOLF',
   'DEMON_WOLF',
   'WITCH',
@@ -681,6 +761,14 @@ export const mvpRoleCatalog = {
     teamId: 'VILLAGE',
     night: {
       order: 20,
+      alwaysNarrateIfInComposition: true,
+    },
+  },
+
+  HYBRID_WOLF: {
+    teamId: 'VILLAGE',
+    night: {
+      order: 45,
       alwaysNarrateIfInComposition: true,
     },
   },

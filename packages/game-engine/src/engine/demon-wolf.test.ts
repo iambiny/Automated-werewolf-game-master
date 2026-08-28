@@ -6,7 +6,10 @@ import {
   setActiveNightTurn,
   setNightResolutionPhase,
 } from '../testing/night-state';
-import { submitDemonWolfCurseDecision } from './demon-wolf';
+import {
+  evaluateDemonWolfCurse,
+  submitDemonWolfCurseDecision,
+} from './demon-wolf';
 import { submitGuardProtection } from './guard';
 import { resolveNight } from './night-resolution';
 import { submitWerewolfAttack } from './werewolf';
@@ -111,6 +114,11 @@ describe('Demon Wolf mechanics', () => {
     state = submitWolfTarget(state, 'villager');
     state = submitCurse(state);
 
+    expect(evaluateDemonWolfCurse(state)).toEqual({
+      outcome: 'FAILED',
+      targetPlayerId: 'villager',
+    });
+
     const resolution = resolveNight(
       setNightResolutionPhase(state),
       resolutionRules,
@@ -131,6 +139,11 @@ describe('Demon Wolf mechanics', () => {
     let state = createNightTestState('WEREWOLF');
     state = submitWolfTarget(state, 'villager');
     state = submitCurse(state);
+
+    expect(evaluateDemonWolfCurse(state)).toEqual({
+      outcome: 'SUCCEEDED',
+      targetPlayerId: 'villager',
+    });
 
     const resolution = resolveNight(
       setNightResolutionPhase(state),

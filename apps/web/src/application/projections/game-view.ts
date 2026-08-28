@@ -57,12 +57,20 @@ export interface PublicRoleReveal extends PlayerSummary {
 }
 
 export interface PrivateTurnView {
+  curseResult?: {
+    outcome: 'FAILED' | 'SUCCEEDED' | 'CONSUMED';
+    target: PlayerSummary;
+  };
   instruction: string;
   mode: 'ACTIVE' | 'DECOY';
   privateContext?: {
     canHealWerewolfVictim?: boolean;
     cursedPlayers?: PlayerSummary[];
     healPotionRemaining?: number;
+    hybridWolf?: {
+      converted: boolean;
+      player: PlayerSummary;
+    };
     poisonPotionRemaining?: number;
     werewolfVictim?: PlayerSummary;
   };

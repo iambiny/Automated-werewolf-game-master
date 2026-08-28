@@ -105,6 +105,7 @@ interface RoleAssignment {
   originalRoleId: RoleId;
   currentRoleId: RoleId;
   teamId: TeamId;
+  converted?: boolean;
 }
 ```
 
@@ -114,6 +115,11 @@ For MVP Demon Wolf, after curse success the player keeps their functional
 `currentRoleId`, changes to `teamId = WEREWOLF`, and joins the shared attack.
 The player receives a private notification and wakes with Werewolves while
 retaining their functional action.
+
+Hybrid Wolf uses a separate intrinsic conversion. It begins with
+`originalRoleId = currentRoleId = HYBRID_WOLF` and `teamId = VILLAGE`. After
+an unprotected Werewolf attack, it keeps the original role for history but
+sets `currentRoleId = WEREWOLF`, `teamId = WEREWOLF`, and `converted = true`.
 
 ---
 
@@ -468,6 +474,19 @@ Choosing CURSE creates:
 
 It does not consume the ability immediately.
 
+## 16.5 Immediate private result
+
+Once the curse intent is accepted, the engine evaluates a private preview
+using only state that is final at that point in the queue: the shared
+Werewolf target, Guard protection, and intrinsic Hybrid Wolf status. The web
+projection exposes `FAILED`, `SUCCEEDED`, or `CONSUMED` with the target to a
+timed Demon Wolf-only result screen. `SUCCEEDED` and `CONSUMED` both instruct
+the Demon Wolf to touch the target's head; `FAILED` exposes no handoff.
+
+Witch healing occurs later and cannot change this result. Final night
+resolution uses the same evaluator so the persisted outcome cannot disagree
+with the private result.
+
 ---
 
 # 17. Witch Resolution
@@ -480,6 +499,13 @@ interface WitchRuntimeState {
 ```
 
 The engine validates selected Witch actions from preset rules.
+
+Before projecting the private Witch context or accepting `WITCH_HEAL`, the
+engine derives an effective heal target from the raw Werewolf selection. Guard
+protection, a successful/consumed Demon Wolf curse, or intrinsic Hybrid Wolf
+conversion removes that player from the Witch victim context. This prevents
+the UI from describing a protected or converted player as dead and prevents
+an ineligible healing potion from being consumed.
 
 Actions convert into `HEAL` and/or `POISON` effects.
 
@@ -495,22 +521,28 @@ Reference algorithm:
 1. Read Guard protection effects.
 2. Read Werewolf attack target.
 3. Read Demon Wolf curse intent.
-4. Read Witch heal/poison effects.
-5. Determine whether Werewolf attack is prevented.
-6. If wolf attack prevented:
+4. Preserve the curse outcome already determined before the Witch turn.
+5. Read Witch heal/poison effects and determine ordinary attack prevention.
+6. If the target is an unconverted Hybrid Wolf and Guard did not protect it:
+     - replace ordinary wolf death with intrinsic Hybrid Wolf conversion
+     - consume a same-target Demon Wolf curse intent, if present
+7. Else if wolf attack prevented:
      - ordinary wolf death does not occur
      - curse does not succeed
      - Demon Wolf retains curse ability
-7. Else if wolf attack is not prevented AND valid curse intent exists:
+8. Else if wolf attack is not prevented AND valid curse intent exists:
      - replace ordinary wolf death with curse conversion
      - consume Demon Wolf curse ability
-8. Else:
+9. Else:
      - resolve ordinary wolf attack death
-9. Apply Witch heal interaction according to preset.
-10. Apply Witch poison.
-11. Determine final night deaths.
-12. Queue morning death triggers.
-13. Persist night resolution.
+10. Apply Witch healing to an ordinary Werewolf death only; it does not undo
+    a successful curse.
+11. Apply Witch poison.
+12. Determine final night deaths.
+13. Queue morning death triggers.
+14. Persist night resolution. Hybrid Wolf conversion was already disclosed in
+    its normal turn between Demon Wolf and Witch, so resolution creates no
+    additional private wake-up.
 ```
 
 Actual implementation should use explicit effect priority rather than tightly coupling every role in one function, but MVP scenario behavior must match this outcome.
