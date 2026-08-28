@@ -2329,6 +2329,10 @@ If the Werewolves select no attack target, Demon Wolf cannot successfully curse 
 
 The curse is conditional on the Werewolf attack being effective after defensive resolution.
 
+For the current MVP flow, "defensive resolution" here means Guard protection,
+which is already known when the Demon Wolf acts. Witch healing occurs later
+and does not block or reverse a successful curse.
+
 ```text
 Werewolves attack Player A
   -> Demon Wolf chooses CURSE on Player A
@@ -2352,6 +2356,12 @@ Werewolves attack Player A
 ```
 
 The cursed victim must not also be resolved as an ordinary Werewolf death when curse success replaces the attack outcome.
+
+Immediately after choosing `CURSE`, the system MUST show the Demon Wolf a
+timed private result. `CURSE_SUCCESS` and Hybrid Wolf curse consumption MUST
+show `Touch [target]'s head now`; a failed curse MUST NOT show a physical
+handoff. The role remains awake until the user ends the result step (or its
+role-action timer expires), after which the normal sleep transition begins.
 
 ## 42.6 Ability consumption semantics
 

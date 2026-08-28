@@ -57,6 +57,10 @@ export interface PublicRoleReveal extends PlayerSummary {
 }
 
 export interface PrivateTurnView {
+  curseResult?: {
+    outcome: 'FAILED' | 'SUCCEEDED' | 'CONSUMED';
+    target: PlayerSummary;
+  };
   instruction: string;
   mode: 'ACTIVE' | 'DECOY';
   privateContext?: {

@@ -113,7 +113,7 @@ export function toMvpRuleConfig(rules: SetupRules): MvpRuleConfig {
       executionVoteWeight: 2,
       officeOnDeath: 'VACANT',
     },
-    nightResolution: { healPreventsCurse: true },
+    nightResolution: { healPreventsCurse: false },
     seer: {
       allowSelfInspect: false,
       investigationMode: rules.seerMode,

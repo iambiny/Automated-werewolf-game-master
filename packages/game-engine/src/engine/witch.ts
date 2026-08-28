@@ -12,10 +12,45 @@ import {
   rejectedAction,
   validateActiveNightTurn,
 } from './night-action';
+import { evaluateDemonWolfCurse } from './demon-wolf';
 
 export interface SubmitWitchActionInput {
   actionId: ActionId;
   targetPlayerId: PlayerId;
+}
+
+/** Returns the living player whose Werewolf-attack death the Witch can heal. */
+export function getWitchHealTargetId(state: MatchState): PlayerId | undefined {
+  const context = state.nightContext;
+  const targetPlayerId = context?.werewolfAttackTargetId ?? undefined;
+  if (!context || !targetPlayerId) return undefined;
+
+  const target = state.players[targetPlayerId];
+  const protectedByGuard = context.effects.some(
+    (effect) =>
+      effect.type === 'PROTECT' &&
+      effect.targetPlayerIds.includes(targetPlayerId),
+  );
+  const curseOutcome = evaluateDemonWolfCurse(state)?.outcome;
+  const assignment = state.roleAssignments[targetPlayerId];
+  const convertsAsHybridWolf =
+    assignment?.originalRoleId === 'HYBRID_WOLF' &&
+    assignment.currentRoleId === 'HYBRID_WOLF' &&
+    assignment.teamId === 'VILLAGE' &&
+    assignment.converted !== true;
+
+  if (
+    !target ||
+    target.lifeState !== 'ALIVE' ||
+    protectedByGuard ||
+    curseOutcome === 'SUCCEEDED' ||
+    curseOutcome === 'CONSUMED' ||
+    convertsAsHybridWolf
+  ) {
+    return undefined;
+  }
+
+  return targetPlayerId;
 }
 
 export function submitWitchHeal(
@@ -26,7 +61,7 @@ export function submitWitchHeal(
   const validation = validateWitchAction(state, 'WITCH_HEAL', rules);
   if ('error' in validation) return rejectedAction(state, validation.error);
 
-  const wolfTargetId = state.nightContext?.werewolfAttackTargetId;
+  const wolfTargetId = getWitchHealTargetId(state);
   const target = state.players[input.targetPlayerId];
   if (
     !wolfTargetId ||

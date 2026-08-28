@@ -1,4 +1,6 @@
 import {
+  evaluateDemonWolfCurse,
+  getWitchHealTargetId,
   isPlayerCursed,
   type MatchState,
   type PlayerId,
@@ -110,8 +112,20 @@ export function toMvpPrivateTurnView(
     case 'DEMON_WOLF': {
       const victimId = state.nightContext?.werewolfAttackTargetId;
       const victim = victimId ? state.players[victimId] : undefined;
+      const curse = evaluateDemonWolfCurse(state);
+      const curseTarget = curse
+        ? state.players[curse.targetPlayerId]
+        : undefined;
       return {
         ...withCurseNotice,
+        ...(curse && curseTarget
+          ? {
+              curseResult: {
+                outcome: curse.outcome,
+                target: summarizeOne(curseTarget),
+              },
+            }
+          : {}),
         privateContext: {
           ...cursedContext,
           ...(victim ? { werewolfVictim: summarizeOne(victim) } : {}),
@@ -119,7 +133,7 @@ export function toMvpPrivateTurnView(
       };
     }
     case 'WITCH': {
-      const victimId = state.nightContext?.werewolfAttackTargetId;
+      const victimId = getWitchHealTargetId(state);
       const victim = victimId ? state.players[victimId] : undefined;
       return {
         ...withCurseNotice,

@@ -343,6 +343,21 @@ decision: 'CURSE' | 'SKIP'
 
 If no Werewolf target exists, curse cannot succeed.
 
+After `CURSE` is submitted, the Demon Wolf turn remains open on a timed
+private result step. The result is computed immediately from the Werewolf
+target and the Guard protection already recorded earlier in the night:
+
+- success (including consumption by an unconverted Hybrid Wolf) displays
+  `Touch [target]'s head now` so that player knows to wake with the Werewolves
+  on the following night;
+- failure displays no physical handoff instruction;
+- the Demon Wolf ends the result step with `End role and sleep`, or the normal
+  role-action timer closes it automatically.
+
+The later Witch turn does not revise this private curse result. A healing
+potion can prevent an ordinary Werewolf death, but cannot undo a curse that
+was already reported as successful.
+
 ## Curse blocked
 
 ```text
@@ -443,6 +458,12 @@ Produces:
 ```ts
 HEAL(target)
 ```
+
+The Witch sees and may heal only an effective pending Werewolf-attack death.
+If Guard already protected the selected target, the Witch is not shown that
+player as a victim and cannot spend the healing potion on them. The same rule
+applies when the attack has already been replaced by a successful curse or an
+intrinsic Hybrid Wolf conversion.
 
 Basic rules should define:
 

@@ -637,7 +637,10 @@ export function GameApp() {
 
     const nextPrivate = controller.getPrivateTurnView();
     setPrivateTurn(nextPrivate);
-    if (privateTurn.roleId === 'SEER' && action !== 'PASS') {
+    if (
+      (privateTurn.roleId === 'SEER' && action !== 'PASS') ||
+      (privateTurn.roleId === 'DEMON_WOLF' && action === 'CURSE')
+    ) {
       setScreen('NIGHT_RESULT');
     } else if (
       privateTurn.roleId === 'WITCH' &&
@@ -1275,12 +1278,20 @@ export function GameApp() {
         )}
         {screen === 'NIGHT_RESULT' && privateTurn && (
           <NightResultScreen
+            locale={locale}
             onAcknowledge={() => {
               setPrivateTurn((turn) =>
-                turn ? { ...turn, privateResult: undefined } : null,
+                turn
+                  ? {
+                      ...turn,
+                      curseResult: undefined,
+                      privateResult: undefined,
+                    }
+                  : null,
               );
               setScreen('NIGHT_SLEEP');
             }}
+            timeoutSeconds={rules.roleTimerSeconds}
             turn={privateTurn}
           />
         )}
@@ -2496,12 +2507,28 @@ function NightTurnHeader({
 }
 
 function NightResultScreen({
+  locale,
   onAcknowledge,
+  timeoutSeconds,
   turn,
 }: {
+  locale: SupportedLocale;
   onAcknowledge: () => void;
+  timeoutSeconds: number;
   turn: PrivateTurnView;
 }) {
+  if (turn.curseResult) {
+    return (
+      <DemonWolfCurseResultScreen
+        curseResult={turn.curseResult}
+        locale={locale}
+        onAcknowledge={onAcknowledge}
+        roleId={turn.roleId}
+        timeoutSeconds={timeoutSeconds}
+      />
+    );
+  }
+
   const result = turn.privateResult;
   const target = turn.validTargets?.find(
     (player) => player.playerId === result?.targetPlayerId,
@@ -2529,6 +2556,61 @@ function NightResultScreen({
         onClick={onAcknowledge}
       >
         Hide result and sleep
+      </button>
+    </section>
+  );
+}
+
+function DemonWolfCurseResultScreen({
+  curseResult,
+  locale,
+  onAcknowledge,
+  roleId,
+  timeoutSeconds,
+}: {
+  curseResult: NonNullable<PrivateTurnView['curseResult']>;
+  locale: SupportedLocale;
+  onAcknowledge: () => void;
+  roleId: string;
+  timeoutSeconds: number;
+}) {
+  const remaining = useDeadlineCountdown(timeoutSeconds, onAcknowledge);
+  const succeeded = curseResult.outcome !== 'FAILED';
+  return (
+    <section className="night-result panel-enter">
+      <NightTurnHeader remaining={remaining} roleId={roleId} />
+      <div className="result-eye" aria-hidden="true">
+        {succeeded ? '✓' : '×'}
+      </div>
+      <p className="eyebrow">For the Demon Wolf only</p>
+      <h2>
+        {translateInterfaceText(
+          locale,
+          succeeded ? 'Curse successful' : 'Curse failed',
+        )}
+      </h2>
+      {succeeded ? (
+        <div className="result-value">
+          {translateInterfaceText(locale, 'Touch ')}
+          {curseResult.target.displayName}
+          {translateInterfaceText(locale, "'s head now")}
+        </div>
+      ) : (
+        <p>
+          {translateInterfaceText(locale, 'The curse did not take effect.')}
+        </p>
+      )}
+      <p>
+        {translateInterfaceText(
+          locale,
+          'Complete the private handoff before the timer ends.',
+        )}
+      </p>
+      <button
+        className="button button-primary night-action"
+        onClick={onAcknowledge}
+      >
+        {translateInterfaceText(locale, 'End role and sleep')}
       </button>
     </section>
   );

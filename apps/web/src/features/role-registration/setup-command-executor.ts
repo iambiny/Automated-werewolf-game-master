@@ -6,6 +6,7 @@ import {
   completeRoleRegistration,
   declareWinner,
   evaluateWinner,
+  getWitchHealTargetId,
   registerRole,
   resolveNight,
   resolveVote,
@@ -118,7 +119,7 @@ function executeSetupCommand(
         },
       );
     case 'SUBMIT_WITCH_HEAL': {
-      const targetPlayerId = state.nightContext?.werewolfAttackTargetId;
+      const targetPlayerId = getWitchHealTargetId(state);
       return submitWitchHeal(
         state,
         {

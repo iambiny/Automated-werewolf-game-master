@@ -217,6 +217,15 @@ const pageCopy: Record<string, string> = {
   'Werewolf target': 'Mục tiêu của Ma Sói',
   'The curse cannot choose a different player.':
     'Lời nguyền không thể chọn người chơi khác.',
+  'Curse successful': 'Lời nguyền thành công',
+  'Curse failed': 'Lời nguyền thất bại',
+  'For the Demon Wolf only': 'Chỉ dành cho Sói Quỷ',
+  'Touch ': 'Chạm vào đầu ',
+  "'s head now": ' ngay bây giờ',
+  'The curse did not take effect.': 'Lời nguyền không có hiệu lực.',
+  'Complete the private handoff before the timer ends.':
+    'Hoàn tất tín hiệu bí mật trước khi hết giờ.',
+  'End role and sleep': 'Kết thúc vai trò và đi ngủ',
   'Skip attack': 'Bỏ qua tấn công',
   'Use curse': 'Dùng lời nguyền',
   'Skip curse': 'Bỏ qua lời nguyền',

@@ -3,7 +3,12 @@ import { describe, expect, it } from 'vitest';
 import {
   createNightTestState,
   markTestPlayerCursed,
+  setActiveNightTurn,
 } from '../../../../../packages/game-engine/src/testing/night-state';
+import {
+  submitDemonWolfCurseDecision,
+  submitGuardProtection,
+} from '@werewolf/game-engine';
 import { DEFAULT_SETUP_RULES, toMvpRuleConfig } from '../setup/setup-model';
 import { toMvpPrivateTurnView } from './mvp-private-turn-view';
 
@@ -81,6 +86,48 @@ describe('MVP private night projection', () => {
     });
   });
 
+  it('shows a successful private curse handoff immediately after submission', () => {
+    const state = createNightTestState('DEMON_WOLF');
+    state.nightContext!.werewolfAttackTargetId = 'villager';
+    const result = submitDemonWolfCurseDecision(state, {
+      actionId: 'curse-villager',
+      decision: 'CURSE',
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.error.message);
+    expect(toMvpPrivateTurnView(result.state, rules)?.curseResult).toEqual({
+      outcome: 'SUCCEEDED',
+      target: { displayName: 'Villager', playerId: 'villager', seatIndex: 4 },
+    });
+  });
+
+  it('shows curse failure without a successful handoff when Guard protected the target', () => {
+    let state = createNightTestState('GUARD');
+    const protectedResult = submitGuardProtection(
+      state,
+      { actionId: 'protect-villager', targetPlayerId: 'villager' },
+      { allowSameTargetConsecutiveNights: false, allowSelfProtect: false },
+    );
+    expect(protectedResult.ok).toBe(true);
+    if (!protectedResult.ok) throw new Error(protectedResult.error.message);
+    state = setActiveNightTurn(protectedResult.state, 'DEMON_WOLF');
+    state.nightContext!.werewolfAttackTargetId = 'villager';
+    const curseResult = submitDemonWolfCurseDecision(state, {
+      actionId: 'blocked-curse',
+      decision: 'CURSE',
+    });
+
+    expect(curseResult.ok).toBe(true);
+    if (!curseResult.ok) throw new Error(curseResult.error.message);
+    expect(toMvpPrivateTurnView(curseResult.state, rules)?.curseResult).toEqual(
+      {
+        outcome: 'FAILED',
+        target: { displayName: 'Villager', playerId: 'villager', seatIndex: 4 },
+      },
+    );
+  });
+
   it('removes the ability UI from a cursed functional role', () => {
     const state = markTestPlayerCursed(createNightTestState('SEER'), 'seer');
 
@@ -137,5 +184,27 @@ describe('MVP private night projection', () => {
       werewolfVictim: { playerId: 'villager' },
     });
     expect(hidden?.privateContext?.werewolfVictim).toBeUndefined();
+  });
+
+  it('does not show or offer healing for a Guard-protected Werewolf target', () => {
+    let state = createNightTestState('GUARD');
+    const protectedResult = submitGuardProtection(
+      state,
+      { actionId: 'guard-protect-wolf-target', targetPlayerId: 'villager' },
+      { allowSameTargetConsecutiveNights: false, allowSelfProtect: false },
+    );
+    expect(protectedResult.ok).toBe(true);
+    if (!protectedResult.ok) throw new Error(protectedResult.error.message);
+    state = setActiveNightTurn(protectedResult.state, 'WITCH');
+    state.nightContext!.werewolfAttackTargetId = 'villager';
+
+    const view = toMvpPrivateTurnView(state, rules);
+
+    expect(view?.privateContext).toMatchObject({
+      canHealWerewolfVictim: false,
+      healPotionRemaining: 1,
+      poisonPotionRemaining: 1,
+    });
+    expect(view?.privateContext?.werewolfVictim).toBeUndefined();
   });
 });

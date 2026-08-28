@@ -474,6 +474,19 @@ Choosing CURSE creates:
 
 It does not consume the ability immediately.
 
+## 16.5 Immediate private result
+
+Once the curse intent is accepted, the engine evaluates a private preview
+using only state that is final at that point in the queue: the shared
+Werewolf target, Guard protection, and intrinsic Hybrid Wolf status. The web
+projection exposes `FAILED`, `SUCCEEDED`, or `CONSUMED` with the target to a
+timed Demon Wolf-only result screen. `SUCCEEDED` and `CONSUMED` both instruct
+the Demon Wolf to touch the target's head; `FAILED` exposes no handoff.
+
+Witch healing occurs later and cannot change this result. Final night
+resolution uses the same evaluator so the persisted outcome cannot disagree
+with the private result.
+
 ---
 
 # 17. Witch Resolution
@@ -486,6 +499,13 @@ interface WitchRuntimeState {
 ```
 
 The engine validates selected Witch actions from preset rules.
+
+Before projecting the private Witch context or accepting `WITCH_HEAL`, the
+engine derives an effective heal target from the raw Werewolf selection. Guard
+protection, a successful/consumed Demon Wolf curse, or intrinsic Hybrid Wolf
+conversion removes that player from the Witch victim context. This prevents
+the UI from describing a protected or converted player as dead and prevents
+an ineligible healing potion from being consumed.
 
 Actions convert into `HEAL` and/or `POISON` effects.
 
@@ -501,8 +521,8 @@ Reference algorithm:
 1. Read Guard protection effects.
 2. Read Werewolf attack target.
 3. Read Demon Wolf curse intent.
-4. Read Witch heal/poison effects.
-5. Determine whether Werewolf attack is prevented.
+4. Preserve the curse outcome already determined before the Witch turn.
+5. Read Witch heal/poison effects and determine ordinary attack prevention.
 6. If the target is an unconverted Hybrid Wolf and Guard did not protect it:
      - replace ordinary wolf death with intrinsic Hybrid Wolf conversion
      - consume a same-target Demon Wolf curse intent, if present
@@ -515,7 +535,8 @@ Reference algorithm:
      - consume Demon Wolf curse ability
 9. Else:
      - resolve ordinary wolf attack death
-10. Apply Witch heal interaction according to preset.
+10. Apply Witch healing to an ordinary Werewolf death only; it does not undo
+    a successful curse.
 11. Apply Witch poison.
 12. Determine final night deaths.
 13. Queue morning death triggers.

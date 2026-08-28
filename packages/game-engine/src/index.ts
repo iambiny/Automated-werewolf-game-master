@@ -90,8 +90,14 @@ export {
   startFirstNight,
 } from './engine/role-registration';
 export type { RegisterRoleInput } from './engine/role-registration';
-export { submitDemonWolfCurseDecision } from './engine/demon-wolf';
-export type { SubmitDemonWolfCurseInput } from './engine/demon-wolf';
+export {
+  evaluateDemonWolfCurse,
+  submitDemonWolfCurseDecision,
+} from './engine/demon-wolf';
+export type {
+  DemonWolfCurseEvaluation,
+  SubmitDemonWolfCurseInput,
+} from './engine/demon-wolf';
 export {
   createFoolExecutionInterceptor,
   FOOL_NO_VOTE_FLAG,
@@ -121,7 +127,11 @@ export {
   startMayorElection,
 } from './engine/voting';
 export type { VoteBallot, VoteResolutionRules } from './engine/voting';
-export { submitWitchHeal, submitWitchPoison } from './engine/witch';
+export {
+  getWitchHealTargetId,
+  submitWitchHeal,
+  submitWitchPoison,
+} from './engine/witch';
 export type { SubmitWitchActionInput } from './engine/witch';
 export type {
   DomainError,

@@ -9,6 +9,7 @@ import type { DomainEvent } from '../events/domain-event';
 import { applyDeaths, type PendingDeath } from './death';
 import { domainError, type EngineResult } from './result';
 import { CURSED_ROLE_STATE_KEY } from './curse';
+import { evaluateDemonWolfCurse } from './demon-wolf';
 
 export function resolveNight(
   state: MatchState,
@@ -43,6 +44,7 @@ export function resolveNight(
   const protectedIds = targetSet(context.effects, 'PROTECT');
   const healedIds = targetSet(context.effects, 'HEAL');
   const poisonIds = targetSet(context.effects, 'POISON');
+  const curseEvaluation = evaluateDemonWolfCurse(state);
   const curseMatchesAttack =
     Boolean(attackTargetId) && curse?.targetPlayerIds[0] === attackTargetId;
   const protectedFromAttack =
@@ -53,15 +55,10 @@ export function resolveNight(
     Boolean(attackTargetId) &&
     isUnconvertedHybridWolf(state, attackTargetId as PlayerId) &&
     !protectedFromAttack;
-  const curseSucceeded =
-    curseMatchesAttack &&
-    !hybridWolfConversion &&
-    !protectedFromAttack &&
-    (!healedFromAttack || !rules.healPreventsCurse);
+  const curseSucceeded = curseEvaluation?.outcome === 'SUCCEEDED';
   const attackPrevented =
     !hybridWolfConversion &&
-    (protectedFromAttack ||
-      (healedFromAttack && (!curseMatchesAttack || rules.healPreventsCurse)));
+    (protectedFromAttack || (healedFromAttack && !curseSucceeded));
 
   let nextState = state;
   const events: DomainEvent[] = [];
@@ -127,13 +124,7 @@ export function resolveNight(
 
   const result: NightResolutionResult = {
     attackPrevented,
-    curseOutcome: curse
-      ? curseMatchesAttack && hybridWolfConversion
-        ? 'CONSUMED'
-        : curseSucceeded
-          ? 'SUCCEEDED'
-          : 'FAILED'
-      : 'NONE',
+    curseOutcome: curse ? (curseEvaluation?.outcome ?? 'FAILED') : 'NONE',
     deaths: deathResolution.deaths,
     nightNumber: context.nightNumber,
     ...(transformedPlayerId ? { transformedPlayerId } : {}),

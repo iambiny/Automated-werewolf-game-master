@@ -640,6 +640,12 @@ exact same target selected by Werewolf attack
 
 Curse is an intent, not immediate mutation.
 
+Immediately after intent submission, the private projection evaluates the
+curse against the already-recorded Guard protection. Success and Hybrid Wolf
+consumption produce a timed `Touch [target]'s head now` handoff; failure
+produces no handoff. The Demon Wolf explicitly ends this result step before
+the sleep transition. A later Witch heal cannot revise the result.
+
 Resolution:
 
 ```text
