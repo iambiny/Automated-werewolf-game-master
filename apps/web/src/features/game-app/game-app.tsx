@@ -670,7 +670,7 @@ export function GameApp() {
       currentView.phase.subphase === 'RESOLUTION' &&
       currentView.nightResolved
     ) {
-      await finishNight(false);
+      await finishNight();
       return;
     }
     setBusy(true);
@@ -695,7 +695,7 @@ export function GameApp() {
     setScreen('NIGHT_WAKE');
   }
 
-  async function finishNight(showConversionNotice = true) {
+  async function finishNight() {
     const controller = controllerRef.current;
     if (!controller) return;
     setScreen('NIGHT_RESOLVING');
@@ -711,17 +711,6 @@ export function GameApp() {
         setNightError(resolved.error.message);
         return;
       }
-    }
-    const conversionTurn = controller.getPrivateTurnView();
-    if (
-      showConversionNotice &&
-      conversionTurn?.roleId === 'HYBRID_WOLF' &&
-      conversionTurn.privateContext?.hybridWolf?.converted
-    ) {
-      setBusy(false);
-      setPrivateTurn(conversionTurn);
-      setScreen('NIGHT_WAKE');
-      return;
     }
     const dawn = await controller.dispatch({ payload: {}, type: 'REACH_DAWN' });
     setBusy(false);

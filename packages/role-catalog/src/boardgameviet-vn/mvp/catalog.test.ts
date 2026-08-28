@@ -141,9 +141,9 @@ describe('MVP role catalog', () => {
     expect(queue).toEqual([
       { mode: 'ACTIVE', order: 10, roleId: 'SEER' },
       { mode: 'ACTIVE', order: 20, roleId: 'GUARD' },
-      { mode: 'DECOY', order: 25, roleId: 'HYBRID_WOLF' },
       { mode: 'ACTIVE', order: 30, roleId: 'WEREWOLF' },
       { mode: 'ACTIVE', order: 40, roleId: 'DEMON_WOLF' },
+      { mode: 'DECOY', order: 45, roleId: 'HYBRID_WOLF' },
       { mode: 'ACTIVE', order: 50, roleId: 'WITCH' },
     ]);
   });

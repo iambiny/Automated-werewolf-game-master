@@ -109,6 +109,7 @@ export type {
   HunterShotResolutionRules,
   SubmitHunterShotInput,
 } from './engine/hunter';
+export { getPendingHybridWolfConversionId } from './engine/hybrid-wolf';
 export { resolveNight } from './engine/night-resolution';
 export { resolveSeerInspection, submitSeerInspection } from './engine/seer';
 export type { SubmitSeerInspectionInput } from './engine/seer';

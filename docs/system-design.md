@@ -576,9 +576,9 @@ Default preset:
 ```text
 SEER
 → GUARD
-→ HYBRID_WOLF (private status)
 → WEREWOLF
 → DEMON_WOLF
+→ HYBRID_WOLF (private status)
 → WITCH
 → NIGHT_RESOLUTION
 ```
@@ -690,7 +690,9 @@ unprotected pack attack changes `VILLAGE/HYBRID_WOLF` to
 Wolf curse is consumed without applying the generic cursed-role state; when
 Guard blocks the attack, the curse remains available. The configured Hybrid
 Wolf private status turn is always queued as DECOY, including after conversion,
-and a successful conversion adds a private pre-dawn notification.
+and is ordered between Demon Wolf and Witch. A pending conversion is disclosed
+during that one normal status turn; no additional pre-dawn notification or
+second narrator call is created.
 
 The Fool is a neutral third alignment (`teamId: 'FOOL'`). Team-only Seer
 investigation returns `Unclear role` for the Fool. Neutral Fool players are

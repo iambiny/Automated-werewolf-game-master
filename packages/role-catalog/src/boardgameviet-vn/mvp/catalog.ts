@@ -61,7 +61,7 @@ export const mvpRoleCatalog = {
     night: {
       activation: 'EVERY_NIGHT',
       narratorAlwaysCallsIfInComposition: true,
-      order: 25,
+      order: 45,
     },
     shouldNarrateTurn: narrateWhenConfigured('HYBRID_WOLF'),
     teamId: 'VILLAGE',

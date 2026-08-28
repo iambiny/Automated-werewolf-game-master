@@ -4,6 +4,7 @@ import type { GameAction, GameEffect } from '../domain/action';
 import type { DemonWolfCurseDecision } from '../domain/core-role-rules';
 import type { MatchState } from '../domain/match-state';
 import type { EngineResult } from './result';
+import { getPendingHybridWolfConversionId } from './hybrid-wolf';
 import { domainError } from './result';
 import {
   getLivingRoleHolderIds,
@@ -47,12 +48,8 @@ export function evaluateDemonWolfCurse(
     return { outcome: 'FAILED', targetPlayerId };
   }
 
-  const assignment = state.roleAssignments[targetPlayerId];
   const isUnconvertedHybridWolf =
-    assignment?.originalRoleId === 'HYBRID_WOLF' &&
-    assignment.currentRoleId === 'HYBRID_WOLF' &&
-    assignment.teamId === 'VILLAGE' &&
-    assignment.converted !== true;
+    getPendingHybridWolfConversionId(state) === targetPlayerId;
 
   return {
     outcome: isUnconvertedHybridWolf ? 'CONSUMED' : 'SUCCEEDED',

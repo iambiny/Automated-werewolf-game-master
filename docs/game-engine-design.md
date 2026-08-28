@@ -540,7 +540,9 @@ Reference algorithm:
 11. Apply Witch poison.
 12. Determine final night deaths.
 13. Queue morning death triggers.
-14. Persist night resolution and any private Hybrid Wolf notification.
+14. Persist night resolution. Hybrid Wolf conversion was already disclosed in
+    its normal turn between Demon Wolf and Witch, so resolution creates no
+    additional private wake-up.
 ```
 
 Actual implementation should use explicit effect priority rather than tightly coupling every role in one function, but MVP scenario behavior must match this outcome.

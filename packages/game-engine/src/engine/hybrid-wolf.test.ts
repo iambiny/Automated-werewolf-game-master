@@ -8,6 +8,7 @@ import {
 } from '../testing/night-state';
 import { submitDemonWolfCurseDecision } from './demon-wolf';
 import { submitGuardProtection } from './guard';
+import { getPendingHybridWolfConversionId } from './hybrid-wolf';
 import { resolveNight } from './night-resolution';
 import { resolveSeerInspection } from './seer';
 import {
@@ -67,7 +68,9 @@ describe('Hybrid Wolf conversion', () => {
   });
 
   it('survives an unprotected pack attack and permanently becomes a Werewolf', () => {
-    const result = resolve(attackHybrid());
+    const attacked = attackHybrid();
+    expect(getPendingHybridWolfConversionId(attacked)).toBe('hybrid-wolf');
+    const result = resolve(attacked);
 
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error(result.error.message);
@@ -112,7 +115,9 @@ describe('Hybrid Wolf conversion', () => {
         },
       ),
     );
-    const result = resolve(attackHybrid(state));
+    const attacked = attackHybrid(state);
+    expect(getPendingHybridWolfConversionId(attacked)).toBeUndefined();
+    const result = resolve(attacked);
 
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error(result.error.message);

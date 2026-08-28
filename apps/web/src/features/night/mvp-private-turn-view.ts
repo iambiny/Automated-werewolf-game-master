@@ -1,5 +1,6 @@
 import {
   evaluateDemonWolfCurse,
+  getPendingHybridWolfConversionId,
   getWitchHealTargetId,
   isPlayerCursed,
   type MatchState,
@@ -17,9 +18,6 @@ export function toMvpPrivateTurnView(
   state: MatchState,
   rules: MvpRuleConfig,
 ): PrivateTurnView | null {
-  const conversionView = toHybridWolfConversionView(state);
-  if (conversionView) return conversionView;
-
   const base = toPrivateTurnView(state);
   if (!base) return base;
 
@@ -168,37 +166,6 @@ export function toMvpPrivateTurnView(
   }
 }
 
-function toHybridWolfConversionView(state: MatchState): PrivateTurnView | null {
-  if (
-    state.phase.type !== 'NIGHT' ||
-    state.phase.subphase !== 'RESOLUTION' ||
-    !state.nightContext?.resolution
-  ) {
-    return null;
-  }
-  const playerId = state.nightContext.resolution.transformedPlayerId;
-  if (!playerId) return null;
-  const assignment = state.roleAssignments[playerId];
-  const player = state.players[playerId];
-  if (
-    assignment?.originalRoleId !== 'HYBRID_WOLF' ||
-    assignment.converted !== true ||
-    !player ||
-    player.lifeState !== 'ALIVE'
-  ) {
-    return null;
-  }
-
-  return {
-    instruction: 'Privately notify the converted Hybrid Wolf.',
-    mode: 'DECOY',
-    privateContext: {
-      hybridWolf: { converted: true, player: summarizeOne(player) },
-    },
-    roleId: 'HYBRID_WOLF',
-  };
-}
-
 function getHybridWolfContext(
   state: MatchState,
 ): { converted: boolean; player: PlayerSummary } | undefined {
@@ -213,7 +180,9 @@ function getHybridWolfContext(
   const player = state.players[playerId];
   if (!player) return undefined;
   return {
-    converted: assignment.converted === true,
+    converted:
+      assignment.converted === true ||
+      getPendingHybridWolfConversionId(state) === playerId,
     player: summarizeOne(player),
   };
 }

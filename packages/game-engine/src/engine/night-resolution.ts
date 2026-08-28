@@ -10,6 +10,7 @@ import { applyDeaths, type PendingDeath } from './death';
 import { domainError, type EngineResult } from './result';
 import { CURSED_ROLE_STATE_KEY } from './curse';
 import { evaluateDemonWolfCurse } from './demon-wolf';
+import { getPendingHybridWolfConversionId } from './hybrid-wolf';
 
 export function resolveNight(
   state: MatchState,
@@ -52,9 +53,7 @@ export function resolveNight(
   const healedFromAttack =
     Boolean(attackTargetId) && healedIds.has(attackTargetId as PlayerId);
   const hybridWolfConversion =
-    Boolean(attackTargetId) &&
-    isUnconvertedHybridWolf(state, attackTargetId as PlayerId) &&
-    !protectedFromAttack;
+    getPendingHybridWolfConversionId(state) !== undefined;
   const curseSucceeded = curseEvaluation?.outcome === 'SUCCEEDED';
   const attackPrevented =
     !hybridWolfConversion &&
@@ -141,19 +140,6 @@ export function resolveNight(
   };
 
   return { events, ok: true, state: nextState };
-}
-
-function isUnconvertedHybridWolf(
-  state: MatchState,
-  playerId: PlayerId,
-): boolean {
-  const assignment = state.roleAssignments[playerId];
-  return (
-    assignment?.originalRoleId === 'HYBRID_WOLF' &&
-    assignment.currentRoleId === 'HYBRID_WOLF' &&
-    assignment.teamId === 'VILLAGE' &&
-    assignment.converted !== true
-  );
 }
 
 function applyHybridWolfConversion(

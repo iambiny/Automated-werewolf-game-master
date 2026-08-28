@@ -13,6 +13,7 @@ import {
   validateActiveNightTurn,
 } from './night-action';
 import { evaluateDemonWolfCurse } from './demon-wolf';
+import { getPendingHybridWolfConversionId } from './hybrid-wolf';
 
 export interface SubmitWitchActionInput {
   actionId: ActionId;
@@ -32,12 +33,8 @@ export function getWitchHealTargetId(state: MatchState): PlayerId | undefined {
       effect.targetPlayerIds.includes(targetPlayerId),
   );
   const curseOutcome = evaluateDemonWolfCurse(state)?.outcome;
-  const assignment = state.roleAssignments[targetPlayerId];
   const convertsAsHybridWolf =
-    assignment?.originalRoleId === 'HYBRID_WOLF' &&
-    assignment.currentRoleId === 'HYBRID_WOLF' &&
-    assignment.teamId === 'VILLAGE' &&
-    assignment.converted !== true;
+    getPendingHybridWolfConversionId(state) === targetPlayerId;
 
   if (
     !target ||

@@ -35,9 +35,9 @@ Default MVP order:
 ```text
 1. Seer
 2. Guard
-3. Hybrid Wolf (private status turn)
-4. Werewolf
-5. Demon Wolf
+3. Werewolf
+4. Demon Wolf
+5. Hybrid Wolf (private status turn)
 6. Witch
 7. Night Resolution
 ```
@@ -248,7 +248,7 @@ Werewolf group narration should continue according to ruleset privacy behavior w
 ```ts
 id: 'HYBRID_WOLF'
 initial teamId: 'VILLAGE'
-night.order: 25
+night.order: 45
 ```
 
 The Hybrid Wolf begins on the Village team. Neither the Hybrid Wolf nor the
@@ -257,9 +257,11 @@ history and replay.
 
 Every configured night includes a private Hybrid Wolf status turn, even after
 conversion. Before conversion it displays: “You are still a member of the
-Village.” A successful conversion is privately disclosed after night
-resolution, before dawn, and later status turns continue without changing the
-observable narration sequence.
+Village.” This single turn occurs after Demon Wolf and before Witch. If the
+Hybrid Wolf was selected by the Werewolves and Guard did not protect them, the
+same normal status turn immediately discloses the conversion. No additional
+pre-dawn wake-up is added, so the observable narration sequence never reveals
+whether conversion occurred.
 
 The status turn has localized Hybrid Wolf wake and sleep narration. The
 unconverted Village message uses a green-and-yellow visual treatment; the
@@ -766,7 +768,7 @@ export const mvpRoleCatalog = {
   HYBRID_WOLF: {
     teamId: 'VILLAGE',
     night: {
-      order: 25,
+      order: 45,
       alwaysNarrateIfInComposition: true,
     },
   },

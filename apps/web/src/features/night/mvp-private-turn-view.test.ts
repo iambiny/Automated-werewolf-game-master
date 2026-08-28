@@ -8,6 +8,7 @@ import {
 import {
   submitDemonWolfCurseDecision,
   submitGuardProtection,
+  submitWerewolfAttack,
 } from '@werewolf/game-engine';
 import { DEFAULT_SETUP_RULES, toMvpRuleConfig } from '../setup/setup-model';
 import { toMvpPrivateTurnView } from './mvp-private-turn-view';
@@ -54,9 +55,25 @@ describe('MVP private night projection', () => {
       nightNumber: 1,
       transformedPlayerId: 'hybrid-wolf',
     };
+    expect(toMvpPrivateTurnView(converted, rules)).toBeNull();
+  });
+
+  it('shows a pending bite conversion during the normal Hybrid Wolf turn', () => {
+    const attack = submitWerewolfAttack(
+      createNightTestState('WEREWOLF'),
+      { actionId: 'bite-hybrid', targetPlayerId: 'hybrid-wolf' },
+      { allowNoAttack: false, selectionStrategy: 'SHARED_SELECTION' },
+    );
+    expect(attack.ok).toBe(true);
+    if (!attack.ok) throw new Error(attack.error.message);
+    const state = setActiveNightTurn(attack.state, 'HYBRID_WOLF', 'DECOY');
+
     expect(
-      toMvpPrivateTurnView(converted, rules)?.privateContext?.hybridWolf,
-    ).toMatchObject({ converted: true, player: { playerId: 'hybrid-wolf' } });
+      toMvpPrivateTurnView(state, rules)?.privateContext?.hybridWolf,
+    ).toMatchObject({
+      converted: true,
+      player: { playerId: 'hybrid-wolf' },
+    });
   });
 
   it('shows Werewolves only eligible village targets', () => {
